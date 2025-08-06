@@ -1,7 +1,7 @@
 local MainMenu = {}
 
 function MainMenu:load()
-    self.options = {"New Game", "Options", "Quit"}
+    self.options = {"New Game", "Continue", "Options", "Quit"}
     self.selected = 1
 end
 
@@ -36,8 +36,10 @@ function MainMenu:keypressed(key)
             -- Start new game
             Gamestate:push(require "states.newgame")
         elseif self.selected == 2 then
-            -- Go to options
+            -- Continue (placeholder)
         elseif self.selected == 3 then
+            -- Go to options
+        elseif self.selected == 4 then
             love.event.quit()
         end
     end
