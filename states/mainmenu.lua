@@ -34,6 +34,7 @@ function MainMenu:keypressed(key)
     elseif key == "return" or key == "kpenter" then
         if self.selected == 1 then
             -- Start new game
+            Gamestate:push(require "states.newgame")
         elseif self.selected == 2 then
             -- Go to options
         elseif self.selected == 3 then
