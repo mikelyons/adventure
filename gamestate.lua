@@ -7,6 +7,9 @@ function Gamestate:push(state)
     if self.stack[#self.stack].load then
         self.stack[#self.stack]:load()
     end
+    if self.stack[#self.stack].enter then
+        self.stack[#self.stack]:enter()
+    end
 end
 
 function Gamestate:pop()

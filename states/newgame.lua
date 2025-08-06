@@ -89,10 +89,7 @@ end
 
 function NewGame:createSaveFile()
     -- Create save directory if it doesn't exist
-    local success, items = pcall(love.filesystem.getDirectoryItems, "saves")
-    if not success then
-        love.filesystem.createDirectory("saves")
-    end
+    love.filesystem.createDirectory("saves")
     
     -- Create save file with character name and timestamp
     local saveData = {

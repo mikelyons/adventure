@@ -3,6 +3,9 @@ local LoadSave = {}
 function LoadSave:load()
     self.saveFiles = {}
     self.selected = 1
+end
+
+function LoadSave:enter()
     self:scanSaveFiles()
 end
 
@@ -45,52 +48,18 @@ function LoadSave:update(dt)
 end
 
 function LoadSave:draw()
-    -- Title
     love.graphics.printf("Load Game", 0, 50, 800, "center")
-    
-    if #self.saveFiles == 0 then
-        love.graphics.printf("No save files found", 0, 200, 800, "center")
-        love.graphics.printf("Press ESC to go back", 0, 250, 800, "center")
-        return
-    end
-    
-    -- Save file list
-    for i, saveFile in ipairs(self.saveFiles) do
-        local y = 120 + i * 80
-        local data = saveFile.data
-        
-        -- Highlight selected save
-        if i == self.selected then
-            love.graphics.setColor(0.3, 0.3, 0.7)
-            love.graphics.rectangle("fill", 100, y - 5, 600, 70)
-            love.graphics.setColor(1, 1, 1)
-        end
-        
-        -- Character name
-        local nameText = data.characterName or "Unknown"
-        love.graphics.print(nameText, 120, y)
-        
-        -- Level and play time
-        local level = data.level or 1
-        local playTime = data.playTime or 0
-        local hours = math.floor(playTime / 3600)
-        local minutes = math.floor((playTime % 3600) / 60)
-        local timeText = string.format("Level %d - %02d:%02d", level, hours, minutes)
-        love.graphics.print(timeText, 120, y + 20)
-        
-        -- Creation date
-        local createdAt = data.createdAt or 0
-        local dateText = os.date("%Y-%m-%d %H:%M", createdAt)
-        love.graphics.print("Created: " .. dateText, 120, y + 40)
-    end
-    
-    -- Instructions
-    love.graphics.printf("Use UP/DOWN to select, ENTER to load, ESC to go back", 0, 500, 800, "center")
+    love.graphics.printf("This is a test", 0, 200, 800, "center")
 end
 
 function LoadSave:keypressed(key)
     if key == "escape" then
         Gamestate:pop()
+        return
+    end
+    
+    if key == "f5" then
+        self:scanSaveFiles()
         return
     end
     

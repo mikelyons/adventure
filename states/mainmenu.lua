@@ -36,7 +36,7 @@ function MainMenu:keypressed(key)
             -- Start new game
             Gamestate:push(require "states.newgame")
         elseif self.selected == 2 then
-            -- Continue (placeholder)
+            Gamestate:push(require "states.loadsave")
         elseif self.selected == 3 then
             -- Go to options
         elseif self.selected == 4 then
