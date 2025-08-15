@@ -201,6 +201,15 @@ function WorldMap:loadWorldFromData()
                 message = "A swirling portal of unknown origin. It hums with arcane power.",
                 discovered = false,
                 color = {0.8, 0.2, 0.8}
+            },
+            {
+                x = 100,
+                y = 100,
+                radius = 15,
+                name = "Rivertown",
+                message = "You see a bustling town to the north. It seems to be a good place to rest and gather supplies.",
+                discovered = false,
+                color = {0.4, 0.8, 1.0}
             }
         }
     end
@@ -267,7 +276,25 @@ function WorldMap:checkPointOfInterestCollisions()
             poi.discovered = true
             self:showMessage(poi.name, poi.message)
         end
+        
+        -- Check for town entrance
+        if poi.name == "Rivertown" and distance <= collisionDistance then
+            self:enterTown()
+            return
+        end
     end
+end
+
+function WorldMap:enterTown()
+    local town = require "states.town"
+    local newState = {}
+    for k, v in pairs(town) do newState[k] = v end
+    newState.saveDir = self.saveDir
+    newState.saveData = self.saveData
+    newState.worldData = self.worldData
+    newState.townData = self.townData
+    newState.optionsData = self.optionsData
+    Gamestate:push(newState)
 end
 
 function WorldMap:showMessage(title, message)
@@ -488,8 +515,9 @@ function WorldMap:saveGame()
     -- Save all files
     local statsSuccess = love.filesystem.write(self.saveDir .. "/stats.lua", self:serializeSaveData(statsData))
     local worldSuccess = love.filesystem.write(self.saveDir .. "/world.lua", self:serializeSaveData(worldData))
+    local townSuccess = love.filesystem.write(self.saveDir .. "/town.lua", self:serializeSaveData(self.townData))
     
-    if statsSuccess and worldSuccess then
+    if statsSuccess and worldSuccess and townSuccess then
         print("Game saved to: " .. self.saveDir)
         -- Update local data
         self.saveData = statsData

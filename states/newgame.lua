@@ -145,6 +145,15 @@ function NewGame:createSaveFile()
         return
     end
     
+    -- Create initial town data
+    local townData = self:generateTownData()
+    local townSuccess = love.filesystem.write(saveDir .. "/town.lua", self:serializeData(townData))
+    if not townSuccess then
+        self.errorMessage = "Failed to create town file"
+        self.confirmCreate = false
+        return
+    end
+    
     print("Save directory created: " .. saveDir)
     
     -- Start the game with this save data
@@ -154,6 +163,7 @@ function NewGame:createSaveFile()
     newState.saveDir = saveDir
     newState.saveData = statsData
     newState.worldData = worldData
+    newState.townData = townData
     newState.optionsData = optionsData
     Gamestate:push(newState)
 end
@@ -253,6 +263,15 @@ function NewGame:generateWorldData()
                 message = "A swirling portal of unknown origin. It hums with arcane power.",
                 discovered = false,
                 color = {0.8, 0.2, 0.8}
+            },
+            {
+                x = 100,
+                y = 100,
+                radius = 15,
+                name = "Rivertown",
+                message = "You see a bustling town to the north. It seems to be a good place to rest and gather supplies.",
+                discovered = false,
+                color = {0.4, 0.8, 1.0}
             }
         }
     }
@@ -264,6 +283,81 @@ function NewGame:generateWorldData()
     end
     
     return worldData
+end
+
+function NewGame:generateTownData()
+    -- Generate a unique town seed based on character name and creation time
+    local seed = 0
+    for i = 1, #self.characterName do
+        seed = seed + string.byte(self.characterName, i) * 2
+    end
+    seed = seed + os.time() * 3
+    
+    -- Set the random seed for this town
+    love.math.setRandomSeed(seed)
+    
+    -- Generate town parameters
+    local townData = {
+        seed = seed,
+        tileSize = 24,
+        cols = 80,
+        rows = 60,
+        scale = 0.12,
+        playerStartX = 400,
+        playerStartY = 300,
+        npcs = {
+            {
+                x = 500,
+                y = 250,
+                name = "Elder Marcus",
+                size = 12,
+                color = {0.7, 0.5, 0.3},
+                dialogue = {
+                    "Welcome to Rivertown, young adventurer!",
+                    "The ancient ruins to the north hold many secrets...",
+                    "Have you visited the market square yet?"
+                },
+                speed = 20
+            },
+            {
+                x = 600,
+                y = 400,
+                name = "Merchant Sarah",
+                size = 10,
+                color = {0.9, 0.7, 0.5},
+                dialogue = {
+                    "Fine goods for sale! The best prices in town!",
+                    "I've heard rumors of treasure in the crystal cave...",
+                    "Come back when you have more gold!"
+                },
+                speed = 25
+            },
+            {
+                x = 350,
+                y = 350,
+                name = "Guard Captain",
+                size = 11,
+                color = {0.6, 0.6, 0.8},
+                dialogue = {
+                    "Keep the peace, citizen. We've had trouble lately.",
+                    "The mystic portal has been acting strangely...",
+                    "Stay safe out there, adventurer."
+                },
+                speed = 30
+            }
+        },
+        events = {
+            -- Town events and cutscenes can be added here
+        }
+    }
+    
+    -- Randomize NPC positions slightly for uniqueness
+    for _, npc in ipairs(townData.npcs) do
+        npc.x = npc.x + love.math.random(-50, 50)
+        npc.y = npc.y + love.math.random(-50, 50)
+    end
+    
+    return townData
 end
 
 return NewGame

@@ -108,9 +108,10 @@ function LoadSave:loadSelectedSave()
         -- Load all save data
         local statsData = self:loadSaveData(saveDir .. "/stats.lua")
         local worldData = self:loadSaveData(saveDir .. "/world.lua")
+        local townData = self:loadSaveData(saveDir .. "/town.lua")
         local optionsData = self:loadSaveData(saveDir .. "/options.lua")
         
-        if statsData and worldData and optionsData then
+        if statsData and worldData and townData and optionsData then
             local worldmap = require "states.worldmap"
             -- Create a new table instance so state isn't shared across calls
             local newState = {}
@@ -118,6 +119,7 @@ function LoadSave:loadSelectedSave()
             newState.saveDir = saveDir
             newState.saveData = statsData
             newState.worldData = worldData
+            newState.townData = townData
             newState.optionsData = optionsData
             Gamestate:push(newState)
         else
