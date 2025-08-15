@@ -18,3 +18,11 @@ end
 function love.keypressed(key)
     Gamestate:keypressed(key)
 end
+
+function love.quit()
+    -- Auto-save current game state if in worldmap
+    local currentState = Gamestate:current()
+    if currentState and currentState.saveGame then
+        currentState:saveGame()
+    end
+end

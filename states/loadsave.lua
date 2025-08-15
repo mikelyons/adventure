@@ -15,21 +15,24 @@ function LoadSave:scanSaveFiles()
     
     if items then
         for _, item in ipairs(items) do
-            if string.match(item, "%.lua$") then
-                local saveData = self:loadSaveData("saves/" .. item)
-                if saveData then
+            -- Check if it's a directory by trying to get items from it
+            local subItems = love.filesystem.getDirectoryItems("saves/" .. item)
+            if subItems then
+                -- If we can get directory items, it's a directory
+                local statsData = self:loadSaveData("saves/" .. item .. "/stats.lua")
+                if statsData then
                     table.insert(self.saveFiles, {
-                        filename = item,
-                        data = saveData
+                        dirname = item,
+                        data = statsData
                     })
                 end
             end
         end
     end
     
-    -- Sort by creation time (newest first)
+    -- Sort by last played time (newest first)
     table.sort(self.saveFiles, function(a, b)
-        return (a.data.createdAt or 0) > (b.data.createdAt or 0)
+        return (a.data.lastPlayed or 0) > (b.data.lastPlayed or 0)
     end)
 end
 
@@ -48,8 +51,23 @@ function LoadSave:update(dt)
 end
 
 function LoadSave:draw()
-    love.graphics.printf("Load Game", 0, 50, 800, "center")
-    love.graphics.printf("This is a test", 0, 200, 800, "center")
+    love.graphics.printf("Load Game", 0, 80, 800, "center")
+
+    if #self.saveFiles == 0 then
+        love.graphics.printf("No save files found. Press ESC to go back.", 0, 280, 800, "center")
+        return
+    end
+
+    local startY = 180
+    local lineHeight = 36
+    for i, entry in ipairs(self.saveFiles) do
+        local prefix = (i == self.selected) and "> " or "  "
+        local lastPlayed = os.date("%Y-%m-%d %H:%M", entry.data.lastPlayed or 0)
+        local label = string.format("%s%s (Lv.%d) - %s", prefix, entry.data.characterName or "Unnamed", entry.data.level or 1, lastPlayed)
+        love.graphics.print(label, 260, startY + (i - 1) * lineHeight)
+    end
+
+    love.graphics.printf("Up/Down to select, Enter to load, Esc to back", 0, 520, 800, "center")
 end
 
 function LoadSave:keypressed(key)
@@ -85,10 +103,26 @@ end
 function LoadSave:loadSelectedSave()
     if self.selected <= #self.saveFiles then
         local saveFile = self.saveFiles[self.selected]
-        -- TODO: Start game with loaded save data
-        print("Loading save: " .. saveFile.data.characterName)
-        -- For now, just go back to main menu
-        Gamestate:pop()
+        local saveDir = "saves/" .. saveFile.dirname
+        
+        -- Load all save data
+        local statsData = self:loadSaveData(saveDir .. "/stats.lua")
+        local worldData = self:loadSaveData(saveDir .. "/world.lua")
+        local optionsData = self:loadSaveData(saveDir .. "/options.lua")
+        
+        if statsData and worldData and optionsData then
+            local worldmap = require "states.worldmap"
+            -- Create a new table instance so state isn't shared across calls
+            local newState = {}
+            for k, v in pairs(worldmap) do newState[k] = v end
+            newState.saveDir = saveDir
+            newState.saveData = statsData
+            newState.worldData = worldData
+            newState.optionsData = optionsData
+            Gamestate:push(newState)
+        else
+            print("Failed to load save data from: " .. saveDir)
+        end
     end
 end
 

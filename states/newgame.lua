@@ -88,46 +88,182 @@ function NewGame:keypressed(key)
 end
 
 function NewGame:createSaveFile()
-    -- Create save directory if it doesn't exist
-    love.filesystem.createDirectory("saves")
+    -- Generate a safe directory name from character name
+    local safeDirName = string.gsub(self.characterName, "[^%w%s]", "")
+    safeDirName = string.gsub(safeDirName, "%s+", "_")
+    local saveDir = "saves/" .. safeDirName
     
-    -- Create save file with character name and timestamp
-    local saveData = {
+    -- Create save directory
+    local success = love.filesystem.createDirectory(saveDir)
+    if not success then
+        self.errorMessage = "Failed to create save directory"
+        self.confirmCreate = false
+        return
+    end
+    
+    -- Create stats file
+    local statsData = {
         characterName = self.characterName,
         createdAt = os.time(),
+        lastPlayed = os.time(),
         playTime = 0,
         level = 1,
-        -- Add more game data as needed
+        experience = 0,
+        pointsOfInterest = 0,
+        totalSaves = 0
     }
     
-    -- Generate a safe filename from character name
-    local safeFileName = string.gsub(self.characterName, "[^%w%s]", "")
-    safeFileName = string.gsub(safeFileName, "%s+", "_")
-    local fileName = "saves/" .. safeFileName .. "_" .. os.time() .. ".lua"
+    local statsSuccess = love.filesystem.write(saveDir .. "/stats.lua", self:serializeData(statsData))
+    if not statsSuccess then
+        self.errorMessage = "Failed to create stats file"
+        self.confirmCreate = false
+        return
+    end
     
-    -- Convert save data to Lua table format
-    local saveString = "return {\n"
-    for key, value in pairs(saveData) do
+    -- Create options file
+    local optionsData = {
+        musicVolume = 0.7,
+        soundVolume = 0.8,
+        fullscreen = false,
+        vsync = true,
+        language = "en"
+    }
+    
+    local optionsSuccess = love.filesystem.write(saveDir .. "/options.lua", self:serializeData(optionsData))
+    if not optionsSuccess then
+        self.errorMessage = "Failed to create options file"
+        self.confirmCreate = false
+        return
+    end
+    
+    -- Create initial world data
+    local worldData = self:generateWorldData()
+    local worldSuccess = love.filesystem.write(saveDir .. "/world.lua", self:serializeData(worldData))
+    if not worldSuccess then
+        self.errorMessage = "Failed to create world file"
+        self.confirmCreate = false
+        return
+    end
+    
+    print("Save directory created: " .. saveDir)
+    
+    -- Start the game with this save data
+    local worldmap = require "states.worldmap"
+    local newState = {}
+    for k, v in pairs(worldmap) do newState[k] = v end
+    newState.saveDir = saveDir
+    newState.saveData = statsData
+    newState.worldData = worldData
+    newState.optionsData = optionsData
+    Gamestate:push(newState)
+end
+
+function NewGame:serializeData(data)
+    local result = "return {\n"
+    
+    for key, value in pairs(data) do
         if type(value) == "string" then
-            saveString = saveString .. "  " .. key .. ' = "' .. value .. '",\n'
+            result = result .. string.format("  %s = \"%s\",\n", key, value)
+        elseif type(value) == "table" then
+            result = result .. string.format("  %s = {\n", key)
+            for i, v in ipairs(value) do
+                if type(v) == "table" then
+                    -- Handle nested tables (like color arrays)
+                    result = result .. "    {\n"
+                    for j, subV in ipairs(v) do
+                        result = result .. string.format("      %s,\n", tostring(subV))
+                    end
+                    result = result .. "    },\n"
+                else
+                    result = result .. string.format("    %s,\n", tostring(v))
+                end
+            end
+            result = result .. "  },\n"
         else
-            saveString = saveString .. "  " .. key .. " = " .. tostring(value) .. ",\n"
+            result = result .. string.format("  %s = %s,\n", key, tostring(value))
         end
     end
-    saveString = saveString .. "}\n"
     
-    -- Write save file
-    local success, error = love.filesystem.write(fileName, saveString)
-    
-    if success then
-        -- TODO: Start the actual game with this save data
-        print("Save file created: " .. fileName)
-        -- For now, go back to main menu
-        Gamestate:pop()
-    else
-        self.errorMessage = "Failed to create save file: " .. (error or "Unknown error")
-        self.confirmCreate = false
+    result = result .. "}\n"
+    return result
+end
+
+function NewGame:generateWorldData()
+    -- Generate a unique world seed based on character name and creation time
+    local seed = 0
+    for i = 1, #self.characterName do
+        seed = seed + string.byte(self.characterName, i)
     end
+    seed = seed + os.time()
+    
+    -- Set the random seed for this world
+    love.math.setRandomSeed(seed)
+    
+    -- Generate world parameters
+    local worldData = {
+        seed = seed,
+        tileSize = 32,
+        cols = 100,
+        rows = 100,
+        scale = 0.08,
+        playerStartX = 200,
+        playerStartY = 200,
+        pointsOfInterest = {
+            {
+                x = 400,
+                y = 300,
+                radius = 20,
+                name = "Ancient Ruins",
+                message = "You discover the remains of an ancient civilization. The weathered stones tell stories of a time long forgotten.",
+                discovered = false,
+                color = {0.8, 0.6, 0.2}
+            },
+            {
+                x = 800,
+                y = 150,
+                radius = 18,
+                name = "Crystal Cave",
+                message = "A mysterious cave entrance glows with an ethereal light. Strange crystals line the walls.",
+                discovered = false,
+                color = {0.4, 0.8, 1.0}
+            },
+            {
+                x = 1200,
+                y = 600,
+                radius = 25,
+                name = "Sacred Grove",
+                message = "A peaceful grove of ancient trees. The air here feels charged with magical energy.",
+                discovered = false,
+                color = {0.2, 0.8, 0.3}
+            },
+            {
+                x = 600,
+                y = 800,
+                radius = 22,
+                name = "Desert Oasis",
+                message = "A rare oasis in the vast desert. Clear water flows from a hidden spring.",
+                discovered = false,
+                color = {0.9, 0.9, 0.5}
+            },
+            {
+                x = 1000,
+                y = 400,
+                radius = 20,
+                name = "Mystic Portal",
+                message = "A swirling portal of unknown origin. It hums with arcane power.",
+                discovered = false,
+                color = {0.8, 0.2, 0.8}
+            }
+        }
+    }
+    
+    -- Randomize POI positions slightly for uniqueness
+    for _, poi in ipairs(worldData.pointsOfInterest) do
+        poi.x = poi.x + love.math.random(-100, 100)
+        poi.y = poi.y + love.math.random(-100, 100)
+    end
+    
+    return worldData
 end
 
 return NewGame
