@@ -1,5 +1,19 @@
 local NewGame = {}
 
+-- Compatibility color setter
+local function setColor(r, g, b, a)
+    a = a or 1
+    local getVersion = love.getVersion
+    if getVersion then
+        local major = getVersion()
+        if type(major) == "number" and major >= 11 then
+            love.graphics.setColor(r, g, b, a)
+            return
+        end
+    end
+    love.graphics.setColor(r * 255, g * 255, b * 255, a * 255)
+end
+
 function NewGame:load()
     self.characterName = ""
     self.maxNameLength = 20
@@ -12,37 +26,202 @@ function NewGame:update(dt)
 end
 
 function NewGame:draw()
-    -- Title
-    love.graphics.printf("Create New Game", 0, 100, 800, "center")
-    
-    -- Instructions
-    love.graphics.printf("Enter your character name:", 0, 200, 800, "center")
-    
-    -- Name input box
-    love.graphics.rectangle("line", 250, 250, 300, 40)
-    love.graphics.print(self.characterName, 260, 260)
-    
-    -- Cursor blink when in input mode
-    if self.inputMode and math.floor(love.timer.getTime() * 2) % 2 == 0 then
-        local textWidth = love.graphics.getFont():getWidth(self.characterName)
-        love.graphics.print("|", 260 + textWidth, 260)
+    local screenW, screenH = love.graphics.getDimensions()
+    local time = love.timer.getTime()
+
+    -- Animated background
+    for y = 0, screenH, 32 do
+        for x = 0, screenW, 32 do
+            local wave = math.sin((x + y) * 0.01 + time * 0.5) * 0.02
+            setColor(0.08 + wave, 0.10 + wave, 0.15 + wave)
+            love.graphics.rectangle("fill", x, y, 32, 32)
+        end
     end
-    
-    -- Character count
-    love.graphics.printf(string.len(self.characterName) .. "/" .. self.maxNameLength, 0, 300, 800, "center")
-    
+
+    -- Main panel
+    local panelW, panelH = 500, 380
+    local panelX = (screenW - panelW) / 2
+    local panelY = (screenH - panelH) / 2 - 20
+
+    -- Panel shadow
+    setColor(0, 0, 0, 0.5)
+    love.graphics.rectangle("fill", panelX + 6, panelY + 6, panelW, panelH, 10, 10)
+
+    -- Panel background
+    setColor(0.06, 0.10, 0.16, 0.95)
+    love.graphics.rectangle("fill", panelX, panelY, panelW, panelH, 10, 10)
+
+    -- Inner panel
+    setColor(0.10, 0.14, 0.20, 0.9)
+    love.graphics.rectangle("fill", panelX + 4, panelY + 4, panelW - 8, panelH - 8, 8, 8)
+
+    -- Panel border
+    love.graphics.setLineWidth(3)
+    setColor(0.45, 0.55, 0.70)
+    love.graphics.rectangle("line", panelX, panelY, panelW, panelH, 10, 10)
+
+    -- Inner highlight
+    love.graphics.setLineWidth(1)
+    setColor(0.55, 0.65, 0.80, 0.4)
+    love.graphics.rectangle("line", panelX + 3, panelY + 3, panelW - 6, panelH - 6, 8, 8)
+
+    -- Corner decorations
+    local cornerSize = 16
+    setColor(0.55, 0.65, 0.80)
+    love.graphics.rectangle("fill", panelX + 12, panelY + 12, cornerSize, 2)
+    love.graphics.rectangle("fill", panelX + 12, panelY + 12, 2, cornerSize)
+    love.graphics.rectangle("fill", panelX + panelW - 12 - cornerSize, panelY + 12, cornerSize, 2)
+    love.graphics.rectangle("fill", panelX + panelW - 14, panelY + 12, 2, cornerSize)
+    love.graphics.rectangle("fill", panelX + 12, panelY + panelH - 14, cornerSize, 2)
+    love.graphics.rectangle("fill", panelX + 12, panelY + panelH - 12 - cornerSize, 2, cornerSize)
+    love.graphics.rectangle("fill", panelX + panelW - 12 - cornerSize, panelY + panelH - 14, cornerSize, 2)
+    love.graphics.rectangle("fill", panelX + panelW - 14, panelY + panelH - 12 - cornerSize, 2, cornerSize)
+
+    -- Title with decorative line
+    setColor(0.95, 0.90, 0.70)
+    love.graphics.printf("CREATE NEW GAME", panelX, panelY + 35, panelW, "center")
+
+    -- Decorative line under title
+    local lineY = panelY + 60
+    setColor(0.35, 0.45, 0.55)
+    love.graphics.rectangle("fill", panelX + 60, lineY, panelW - 120, 2)
+    setColor(0.55, 0.65, 0.80)
+    love.graphics.rectangle("fill", panelX + 60, lineY, 20, 2)
+    love.graphics.rectangle("fill", panelX + panelW - 80, lineY, 20, 2)
+
+    -- Instructions
+    setColor(0.70, 0.75, 0.85)
+    love.graphics.printf("Enter your character name:", panelX, panelY + 90, panelW, "center")
+
+    -- Name input box
+    local inputW, inputH = 320, 45
+    local inputX = panelX + (panelW - inputW) / 2
+    local inputY = panelY + 125
+
+    -- Input shadow
+    setColor(0, 0, 0, 0.4)
+    love.graphics.rectangle("fill", inputX + 3, inputY + 3, inputW, inputH, 6, 6)
+
+    -- Input background
+    setColor(0.12, 0.16, 0.22)
+    love.graphics.rectangle("fill", inputX, inputY, inputW, inputH, 6, 6)
+
+    -- Input border (glowing when active)
+    local glow = self.inputMode and (math.sin(time * 3) * 0.2 + 0.8) or 0.6
+    setColor(0.45 * glow, 0.65 * glow, 0.85 * glow)
+    love.graphics.setLineWidth(2)
+    love.graphics.rectangle("line", inputX, inputY, inputW, inputH, 6, 6)
+
+    -- Character name text
+    setColor(0.95, 0.95, 1)
+    love.graphics.print(self.characterName, inputX + 15, inputY + 13)
+
+    -- Cursor blink when in input mode
+    if self.inputMode and math.floor(time * 2) % 2 == 0 then
+        local textWidth = love.graphics.getFont():getWidth(self.characterName)
+        setColor(0.85, 0.90, 1)
+        love.graphics.rectangle("fill", inputX + 15 + textWidth + 2, inputY + 10, 2, 25)
+    end
+
+    -- Character count with progress bar
+    local charCount = string.len(self.characterName)
+    local countX = inputX
+    local countY = inputY + inputH + 8
+
+    -- Progress bar background
+    setColor(0.15, 0.18, 0.22)
+    love.graphics.rectangle("fill", countX, countY, inputW, 6, 2, 2)
+
+    -- Progress bar fill
+    local progress = charCount / self.maxNameLength
+    local barColor = progress > 0.9 and {0.85, 0.55, 0.45} or {0.45, 0.65, 0.85}
+    setColor(barColor[1], barColor[2], barColor[3])
+    love.graphics.rectangle("fill", countX + 1, countY + 1, (inputW - 2) * progress, 4, 1, 1)
+
+    -- Count text
+    setColor(0.60, 0.65, 0.75)
+    love.graphics.printf(charCount .. "/" .. self.maxNameLength, countX, countY + 12, inputW, "center")
+
     -- Error message
     if self.errorMessage ~= "" then
-        love.graphics.setColor(1, 0, 0)
-        love.graphics.printf(self.errorMessage, 0, 330, 800, "center")
-        love.graphics.setColor(1, 1, 1)
+        -- Error background
+        setColor(0.35, 0.15, 0.15, 0.8)
+        love.graphics.rectangle("fill", panelX + 40, panelY + 230, panelW - 80, 30, 4, 4)
+        setColor(0.85, 0.35, 0.35)
+        love.graphics.setLineWidth(1)
+        love.graphics.rectangle("line", panelX + 40, panelY + 230, panelW - 80, 30, 4, 4)
+        setColor(1, 0.70, 0.70)
+        love.graphics.printf(self.errorMessage, panelX, panelY + 237, panelW, "center")
     end
-    
-    -- Instructions
+
+    -- Instructions/confirmation
+    local instructY = panelY + 280
     if not self.confirmCreate then
-        love.graphics.printf("Press ENTER to create save file, ESC to go back", 0, 400, 800, "center")
+        -- Button hints
+        setColor(0.50, 0.60, 0.70)
+        love.graphics.printf("Press", panelX, instructY, panelW, "center")
+
+        -- ENTER button
+        local enterX = panelX + panelW / 2 - 110
+        setColor(0.25, 0.35, 0.45)
+        love.graphics.rectangle("fill", enterX, instructY + 22, 60, 26, 4, 4)
+        setColor(0.55, 0.70, 0.85)
+        love.graphics.setLineWidth(1)
+        love.graphics.rectangle("line", enterX, instructY + 22, 60, 26, 4, 4)
+        setColor(0.90, 0.95, 1)
+        love.graphics.print("ENTER", enterX + 8, instructY + 27)
+
+        setColor(0.50, 0.60, 0.70)
+        love.graphics.print("to create,", enterX + 68, instructY + 27)
+
+        -- ESC button
+        local escX = enterX + 145
+        setColor(0.35, 0.25, 0.25)
+        love.graphics.rectangle("fill", escX, instructY + 22, 45, 26, 4, 4)
+        setColor(0.75, 0.55, 0.55)
+        love.graphics.setLineWidth(1)
+        love.graphics.rectangle("line", escX, instructY + 22, 45, 26, 4, 4)
+        setColor(1, 0.85, 0.85)
+        love.graphics.print("ESC", escX + 10, instructY + 27)
+
+        setColor(0.50, 0.60, 0.70)
+        love.graphics.print("to go back", escX + 52, instructY + 27)
     else
-        love.graphics.printf("Are you sure? Y to confirm, N to cancel", 0, 400, 800, "center")
+        -- Confirmation panel
+        setColor(0.18, 0.22, 0.28, 0.9)
+        love.graphics.rectangle("fill", panelX + 50, instructY - 5, panelW - 100, 65, 6, 6)
+        setColor(0.55, 0.75, 0.55)
+        love.graphics.setLineWidth(2)
+        love.graphics.rectangle("line", panelX + 50, instructY - 5, panelW - 100, 65, 6, 6)
+
+        setColor(0.85, 0.95, 0.85)
+        love.graphics.printf("Create this character?", panelX, instructY + 5, panelW, "center")
+
+        -- Y button
+        local yX = panelX + panelW / 2 - 80
+        setColor(0.25, 0.40, 0.30)
+        love.graphics.rectangle("fill", yX, instructY + 28, 50, 26, 4, 4)
+        setColor(0.55, 0.85, 0.60)
+        love.graphics.setLineWidth(1)
+        love.graphics.rectangle("line", yX, instructY + 28, 50, 26, 4, 4)
+        setColor(0.85, 1, 0.85)
+        love.graphics.print("Y", yX + 20, instructY + 33)
+
+        setColor(0.65, 0.75, 0.65)
+        love.graphics.print("Yes", yX + 55, instructY + 33)
+
+        -- N button
+        local nX = yX + 100
+        setColor(0.40, 0.28, 0.28)
+        love.graphics.rectangle("fill", nX, instructY + 28, 50, 26, 4, 4)
+        setColor(0.85, 0.55, 0.55)
+        love.graphics.setLineWidth(1)
+        love.graphics.rectangle("line", nX, instructY + 28, 50, 26, 4, 4)
+        setColor(1, 0.85, 0.85)
+        love.graphics.print("N", nX + 20, instructY + 33)
+
+        setColor(0.75, 0.60, 0.60)
+        love.graphics.print("No", nX + 55, instructY + 33)
     end
 end
 
@@ -113,7 +292,7 @@ function NewGame:createSaveFile()
         totalSaves = 0
     }
     
-    local statsSuccess = love.filesystem.write(saveDir .. "/stats.lua", self:serializeData(statsData))
+    local statsSuccess = love.filesystem.write(saveDir .. "/stats.lua", self:serializeDataToFile(statsData))
     if not statsSuccess then
         self.errorMessage = "Failed to create stats file"
         self.confirmCreate = false
@@ -129,7 +308,7 @@ function NewGame:createSaveFile()
         language = "en"
     }
     
-    local optionsSuccess = love.filesystem.write(saveDir .. "/options.lua", self:serializeData(optionsData))
+    local optionsSuccess = love.filesystem.write(saveDir .. "/options.lua", self:serializeDataToFile(optionsData))
     if not optionsSuccess then
         self.errorMessage = "Failed to create options file"
         self.confirmCreate = false
@@ -138,7 +317,7 @@ function NewGame:createSaveFile()
     
     -- Create initial world data
     local worldData = self:generateWorldData()
-    local worldSuccess = love.filesystem.write(saveDir .. "/world.lua", self:serializeData(worldData))
+    local worldSuccess = love.filesystem.write(saveDir .. "/world.lua", self:serializeDataToFile(worldData))
     if not worldSuccess then
         self.errorMessage = "Failed to create world file"
         self.confirmCreate = false
@@ -147,7 +326,7 @@ function NewGame:createSaveFile()
     
     -- Create initial town data
     local townData = self:generateTownData()
-    local townSuccess = love.filesystem.write(saveDir .. "/town.lua", self:serializeData(townData))
+    local townSuccess = love.filesystem.write(saveDir .. "/town.lua", self:serializeDataToFile(townData))
     if not townSuccess then
         self.errorMessage = "Failed to create town file"
         self.confirmCreate = false
@@ -168,34 +347,36 @@ function NewGame:createSaveFile()
     Gamestate:push(newState)
 end
 
-function NewGame:serializeData(data)
-    local result = "return {\n"
-    
+function NewGame:serializeData(data, indent)
+    indent = indent or ""
+    local result = "{\n"
+    local nextIndent = indent .. "  "
+
     for key, value in pairs(data) do
-        if type(value) == "string" then
-            result = result .. string.format("  %s = \"%s\",\n", key, value)
-        elseif type(value) == "table" then
-            result = result .. string.format("  %s = {\n", key)
-            for i, v in ipairs(value) do
-                if type(v) == "table" then
-                    -- Handle nested tables (like color arrays)
-                    result = result .. "    {\n"
-                    for j, subV in ipairs(v) do
-                        result = result .. string.format("      %s,\n", tostring(subV))
-                    end
-                    result = result .. "    },\n"
-                else
-                    result = result .. string.format("    %s,\n", tostring(v))
-                end
-            end
-            result = result .. "  },\n"
+        local keyStr
+        if type(key) == "number" then
+            keyStr = ""  -- Array index, no key needed
         else
-            result = result .. string.format("  %s = %s,\n", key, tostring(value))
+            keyStr = key .. " = "
+        end
+
+        if type(value) == "string" then
+            result = result .. nextIndent .. keyStr .. "\"" .. value .. "\",\n"
+        elseif type(value) == "boolean" then
+            result = result .. nextIndent .. keyStr .. tostring(value) .. ",\n"
+        elseif type(value) == "table" then
+            result = result .. nextIndent .. keyStr .. self:serializeData(value, nextIndent) .. ",\n"
+        else
+            result = result .. nextIndent .. keyStr .. tostring(value) .. ",\n"
         end
     end
-    
-    result = result .. "}\n"
+
+    result = result .. indent .. "}"
     return result
+end
+
+function NewGame:serializeDataToFile(data)
+    return "return " .. self:serializeData(data) .. "\n"
 end
 
 function NewGame:generateWorldData()
@@ -226,7 +407,10 @@ function NewGame:generateWorldData()
                 name = "Ancient Ruins",
                 message = "You discover the remains of an ancient civilization. The weathered stones tell stories of a time long forgotten.",
                 discovered = false,
-                color = {0.8, 0.6, 0.2}
+                color = {0.8, 0.6, 0.2},
+                levelType = "ruins",
+                levelSeed = seed + 1,
+                visited = false
             },
             {
                 x = 800,
@@ -235,7 +419,10 @@ function NewGame:generateWorldData()
                 name = "Crystal Cave",
                 message = "A mysterious cave entrance glows with an ethereal light. Strange crystals line the walls.",
                 discovered = false,
-                color = {0.4, 0.8, 1.0}
+                color = {0.4, 0.8, 1.0},
+                levelType = "cave",
+                levelSeed = seed + 2,
+                visited = false
             },
             {
                 x = 1200,
@@ -244,7 +431,10 @@ function NewGame:generateWorldData()
                 name = "Sacred Grove",
                 message = "A peaceful grove of ancient trees. The air here feels charged with magical energy.",
                 discovered = false,
-                color = {0.2, 0.8, 0.3}
+                color = {0.2, 0.8, 0.3},
+                levelType = "forest",
+                levelSeed = seed + 3,
+                visited = false
             },
             {
                 x = 600,
@@ -253,7 +443,10 @@ function NewGame:generateWorldData()
                 name = "Desert Oasis",
                 message = "A rare oasis in the vast desert. Clear water flows from a hidden spring.",
                 discovered = false,
-                color = {0.9, 0.9, 0.5}
+                color = {0.9, 0.9, 0.5},
+                levelType = "oasis",
+                levelSeed = seed + 4,
+                visited = false
             },
             {
                 x = 1000,
@@ -262,7 +455,10 @@ function NewGame:generateWorldData()
                 name = "Mystic Portal",
                 message = "A swirling portal of unknown origin. It hums with arcane power.",
                 discovered = false,
-                color = {0.8, 0.2, 0.8}
+                color = {0.8, 0.2, 0.8},
+                levelType = "portal",
+                levelSeed = seed + 5,
+                visited = false
             },
             {
                 x = 100,
@@ -271,7 +467,10 @@ function NewGame:generateWorldData()
                 name = "Rivertown",
                 message = "You see a bustling town to the north. It seems to be a good place to rest and gather supplies.",
                 discovered = false,
-                color = {0.4, 0.8, 1.0}
+                color = {0.4, 0.8, 1.0},
+                levelType = "town",
+                levelSeed = seed + 6,
+                visited = false
             }
         }
     }

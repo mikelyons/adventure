@@ -1,4 +1,5 @@
 local WorldMap = {}
+local Sprites = require "sprites"
 
 -- Compatibility color setter for LÖVE 0.10.x (0-255) and 11.x+ (0-1)
 local function setColor(r, g, b, a)
@@ -77,6 +78,13 @@ function WorldMap:load()
         level = 1,
         playTime = 0,
     }
+
+    -- Nearby POI for interaction
+    self.nearbyPOI = nil
+    self.interactionPrompt = nil
+
+    -- Initialize sprites
+    Sprites:init()
 end
 
 function WorldMap:enter()
@@ -145,7 +153,10 @@ function WorldMap:loadWorldFromData()
                     name = poi.name,
                     message = poi.message,
                     discovered = poi.discovered or false,
-                    color = poi.color
+                    color = poi.color,
+                    levelType = poi.levelType or "town",
+                    levelSeed = poi.levelSeed or 12345,
+                    visited = poi.visited or false
                 })
             else
                 print("Warning: Skipping malformed POI data")
@@ -164,7 +175,10 @@ function WorldMap:loadWorldFromData()
                 name = "Ancient Ruins",
                 message = "You discover the remains of an ancient civilization. The weathered stones tell stories of a time long forgotten.",
                 discovered = false,
-                color = {0.8, 0.6, 0.2}
+                color = {0.8, 0.6, 0.2},
+                levelType = "ruins",
+                levelSeed = 1001,
+                visited = false
             },
             {
                 x = 800,
@@ -173,7 +187,10 @@ function WorldMap:loadWorldFromData()
                 name = "Crystal Cave",
                 message = "A mysterious cave entrance glows with an ethereal light. Strange crystals line the walls.",
                 discovered = false,
-                color = {0.4, 0.8, 1.0}
+                color = {0.4, 0.8, 1.0},
+                levelType = "cave",
+                levelSeed = 1002,
+                visited = false
             },
             {
                 x = 1200,
@@ -182,7 +199,10 @@ function WorldMap:loadWorldFromData()
                 name = "Sacred Grove",
                 message = "A peaceful grove of ancient trees. The air here feels charged with magical energy.",
                 discovered = false,
-                color = {0.2, 0.8, 0.3}
+                color = {0.2, 0.8, 0.3},
+                levelType = "forest",
+                levelSeed = 1003,
+                visited = false
             },
             {
                 x = 600,
@@ -191,7 +211,10 @@ function WorldMap:loadWorldFromData()
                 name = "Desert Oasis",
                 message = "A rare oasis in the vast desert. Clear water flows from a hidden spring.",
                 discovered = false,
-                color = {0.9, 0.9, 0.5}
+                color = {0.9, 0.9, 0.5},
+                levelType = "oasis",
+                levelSeed = 1004,
+                visited = false
             },
             {
                 x = 1000,
@@ -200,7 +223,10 @@ function WorldMap:loadWorldFromData()
                 name = "Mystic Portal",
                 message = "A swirling portal of unknown origin. It hums with arcane power.",
                 discovered = false,
-                color = {0.8, 0.2, 0.8}
+                color = {0.8, 0.2, 0.8},
+                levelType = "portal",
+                levelSeed = 1005,
+                visited = false
             },
             {
                 x = 100,
@@ -209,7 +235,10 @@ function WorldMap:loadWorldFromData()
                 name = "Rivertown",
                 message = "You see a bustling town to the north. It seems to be a good place to rest and gather supplies.",
                 discovered = false,
-                color = {0.4, 0.8, 1.0}
+                color = {0.4, 0.8, 1.0},
+                levelType = "town",
+                levelSeed = 1006,
+                visited = false
             }
         }
     end
@@ -268,19 +297,22 @@ function WorldMap:update(dt)
 end
 
 function WorldMap:checkPointOfInterestCollisions()
+    self.nearbyPOI = nil
+    self.interactionPrompt = nil
+
     for _, poi in ipairs(self.pointsOfInterest) do
         local distance = math.sqrt((self.player.x - poi.x)^2 + (self.player.y - poi.y)^2)
         local collisionDistance = self.player.size + poi.radius
-        
+
         if distance <= collisionDistance and not poi.discovered then
             poi.discovered = true
             self:showMessage(poi.name, poi.message)
         end
-        
-        -- Check for town entrance
-        if poi.name == "Rivertown" and distance <= collisionDistance then
-            self:enterTown()
-            return
+
+        -- Track nearby POI for interaction
+        if distance <= collisionDistance then
+            self.nearbyPOI = poi
+            self.interactionPrompt = "Press SPACE to enter " .. poi.name
         end
     end
 end
@@ -294,6 +326,30 @@ function WorldMap:enterTown()
     newState.worldData = self.worldData
     newState.townData = self.townData
     newState.optionsData = self.optionsData
+    Gamestate:push(newState)
+end
+
+function WorldMap:enterLevel(poi)
+    local stateModule
+    -- Use Contra-style shooter for the portal
+    if poi.levelType == "portal" then
+        stateModule = require "states.contra"
+    -- Use base building for exploration areas
+    elseif poi.levelType == "ruins" or poi.levelType == "cave" or
+           poi.levelType == "forest" or poi.levelType == "oasis" then
+        stateModule = require "states.basebuilding"
+    else
+        stateModule = require "states.level"
+    end
+
+    local newState = {}
+    for k, v in pairs(stateModule) do newState[k] = v end
+    newState.saveDir = self.saveDir
+    newState.saveData = self.saveData
+    newState.worldData = self.worldData
+    newState.townData = self.townData
+    newState.optionsData = self.optionsData
+    newState.poiData = poi
     Gamestate:push(newState)
 end
 
@@ -312,51 +368,49 @@ function WorldMap:draw()
     love.graphics.push()
     love.graphics.translate(-self.camera.x, -self.camera.y)
 
-    -- Draw visible tiles only
+    -- Draw visible tiles only using sprites
     local startCol = math.max(1, math.floor(self.camera.x / ts) + 1)
     local endCol = math.min(self.world.cols, math.floor((self.camera.x + screenW) / ts) + 1)
     local startRow = math.max(1, math.floor(self.camera.y / ts) + 1)
     local endRow = math.min(self.world.rows, math.floor((self.camera.y + screenH) / ts) + 1)
 
+    setColor(1, 1, 1, 1)
     for row = startRow, endRow do
         for col = startCol, endCol do
             local tile = self.tiles[row][col]
-            if tile == "water" then
-                setColor(0.17, 0.35, 0.60)
-            elseif tile == "sand" then
-                setColor(0.82, 0.74, 0.49)
-            else -- grass
-                setColor(0.23, 0.50, 0.28)
+            local sprite = Sprites:getTile(tile, col, row)
+            if sprite then
+                love.graphics.draw(sprite, (col - 1) * ts, (row - 1) * ts, 0, Sprites.scale, Sprites.scale)
             end
-            love.graphics.rectangle("fill", (col - 1) * ts, (row - 1) * ts, ts, ts)
         end
     end
 
-    -- Optional: subtle grid
-    setColor(0, 0, 0, 0.05)
-    for row = startRow, endRow do
-        love.graphics.line((startCol - 1) * ts, (row - 1) * ts, endCol * ts, (row - 1) * ts)
-    end
-    for col = startCol, endCol do
-        love.graphics.line((col - 1) * ts, (startRow - 1) * ts, (col - 1) * ts, endRow * ts)
-    end
-
-    -- Draw Points of Interest
+    -- Draw Points of Interest using sprite markers
     for _, poi in ipairs(self.pointsOfInterest) do
         -- Check if POI is visible on screen
         if poi.x >= self.camera.x - poi.radius and poi.x <= self.camera.x + screenW + poi.radius and
            poi.y >= self.camera.y - poi.radius and poi.y <= self.camera.y + screenH + poi.radius then
-            
-            -- Draw POI with pulsing effect
-            local pulse = math.sin(love.timer.getTime() * 3) * 0.2 + 0.8
-            setColor(poi.color[1] * pulse, poi.color[2] * pulse, poi.color[3] * pulse, 0.8)
-            love.graphics.circle("fill", poi.x, poi.y, poi.radius)
-            
-            -- Draw outline
-            setColor(poi.color[1], poi.color[2], poi.color[3], 1)
-            love.graphics.setLineWidth(2)
-            love.graphics.circle("line", poi.x, poi.y, poi.radius)
-            
+
+            -- Get POI marker sprite
+            local markerSprite = Sprites:getPOIMarker(poi.levelType)
+
+            -- Draw with pulsing effect
+            local pulse = math.sin(love.timer.getTime() * 3) * 0.15 + 0.85
+            local markerScale = (poi.radius / 8) * pulse
+
+            setColor(1, 1, 1, 1)
+            if markerSprite then
+                love.graphics.draw(markerSprite,
+                    poi.x, poi.y,
+                    0,
+                    markerScale, markerScale,
+                    8, 8)  -- Center origin
+            else
+                -- Fallback to circle
+                setColor(poi.color[1] * pulse, poi.color[2] * pulse, poi.color[3] * pulse, 0.8)
+                love.graphics.circle("fill", poi.x, poi.y, poi.radius)
+            end
+
             -- Draw name if discovered
             if poi.discovered then
                 setColor(1, 1, 1, 0.9)
@@ -365,34 +419,140 @@ function WorldMap:draw()
         end
     end
 
-    -- Player icon (circle with outline)
-    setColor(1, 1, 1)
-    love.graphics.circle("fill", self.player.x, self.player.y, self.player.size)
-    setColor(0.1, 0.1, 0.2)
-    love.graphics.setLineWidth(2)
-    love.graphics.circle("line", self.player.x, self.player.y, self.player.size)
+    -- Player sprite
+    setColor(1, 1, 1, 1)
+    local playerSprite = Sprites.images.player
+    if playerSprite then
+        local playerScale = self.player.size / 6
+        love.graphics.draw(playerSprite,
+            self.player.x, self.player.y,
+            0,
+            playerScale, playerScale,
+            8, 8)  -- Center origin
+    else
+        -- Fallback to circle
+        love.graphics.circle("fill", self.player.x, self.player.y, self.player.size)
+        setColor(0.1, 0.1, 0.2)
+        love.graphics.setLineWidth(2)
+        love.graphics.circle("line", self.player.x, self.player.y, self.player.size)
+    end
 
     love.graphics.pop()
 
-    -- HUD
-    setColor(1, 1, 1)
-    local hudText = string.format("World Map  |  %s  Lv.%d  |  (%.0f, %.0f)", self.hud.name, self.hud.level, self.player.x, self.player.y)
-    love.graphics.print(hudText, 10, 10)
-    love.graphics.print("Arrows/WASD to move, ESC to go back, F5 to save", 10, 30)
-    
-    -- Draw discovered POI count
+    -- Enhanced HUD
+    self:drawHUD()
+
+    -- Draw interaction prompt
+    if self.interactionPrompt then
+        self:drawInteractionPrompt()
+    end
+
+    -- Draw message overlay
+    if self.messageSystem.currentMessage then
+        self:drawMessageOverlay()
+    end
+end
+
+function WorldMap:drawHUD()
+    local screenW = love.graphics.getDimensions()
+
+    -- HUD background panel
+    setColor(0.05, 0.08, 0.12, 0.9)
+    love.graphics.rectangle("fill", 5, 5, 450, 70, 6, 6)
+
+    -- Panel border
+    setColor(0.30, 0.45, 0.55)
+    love.graphics.setLineWidth(2)
+    love.graphics.rectangle("line", 5, 5, 450, 70, 6, 6)
+
+    -- Inner highlight
+    setColor(0.40, 0.55, 0.65, 0.3)
+    love.graphics.rectangle("line", 7, 7, 446, 66, 5, 5)
+
+    -- World map title with globe icon hint
+    setColor(0.55, 0.75, 0.90)
+    love.graphics.print("WORLD MAP", 15, 12)
+
+    -- Separator
+    setColor(0.30, 0.45, 0.55)
+    love.graphics.rectangle("fill", 105, 10, 2, 20)
+
+    -- Player name and level
+    setColor(0.65, 0.95, 0.75)
+    love.graphics.print(self.hud.name, 120, 12)
+    setColor(0.95, 0.85, 0.55)
+    love.graphics.print("Lv." .. self.hud.level, 240, 12)
+
+    -- Separator
+    setColor(0.30, 0.45, 0.55)
+    love.graphics.rectangle("fill", 290, 10, 2, 20)
+
+    -- Coordinates
+    setColor(0.6, 0.7, 0.8)
+    love.graphics.print(string.format("(%.0f, %.0f)", self.player.x, self.player.y), 305, 12)
+
+    -- POI progress bar
     local discoveredCount = 0
     for _, poi in ipairs(self.pointsOfInterest) do
         if poi.discovered then
             discoveredCount = discoveredCount + 1
         end
     end
-    love.graphics.print(string.format("Points of Interest: %d/%d", discoveredCount, #self.pointsOfInterest), 10, 50)
 
-    -- Draw message overlay
-    if self.messageSystem.currentMessage then
-        self:drawMessageOverlay()
-    end
+    -- POI label
+    setColor(0.55, 0.75, 0.90)
+    love.graphics.print("Discovered:", 15, 38)
+
+    -- Progress bar background
+    local barX, barY, barW, barH = 100, 40, 120, 12
+    setColor(0.15, 0.20, 0.25)
+    love.graphics.rectangle("fill", barX, barY, barW, barH, 3, 3)
+
+    -- Progress bar fill
+    local progress = #self.pointsOfInterest > 0 and (discoveredCount / #self.pointsOfInterest) or 0
+    local fillColor = progress >= 1 and {0.55, 0.90, 0.55} or {0.45, 0.70, 0.90}
+    setColor(fillColor[1], fillColor[2], fillColor[3])
+    love.graphics.rectangle("fill", barX + 2, barY + 2, (barW - 4) * progress, barH - 4, 2, 2)
+
+    -- Progress bar highlight
+    setColor(fillColor[1] + 0.2, fillColor[2] + 0.2, fillColor[3] + 0.2, 0.5)
+    love.graphics.rectangle("fill", barX + 2, barY + 2, (barW - 4) * progress, (barH - 4) / 2, 2, 2)
+
+    -- POI count
+    setColor(1, 1, 1)
+    love.graphics.print(string.format("%d/%d", discoveredCount, #self.pointsOfInterest), 230, 38)
+
+    -- Controls hint
+    setColor(0.45, 0.55, 0.65)
+    love.graphics.print("WASD: Move  |  SPACE: Enter  |  ESC: Save & Exit", 15, 55)
+end
+
+function WorldMap:drawInteractionPrompt()
+    local screenW, screenH = love.graphics.getDimensions()
+    local prompt = self.interactionPrompt
+    local font = love.graphics.getFont()
+    local textWidth = font:getWidth(prompt)
+
+    local boxW = textWidth + 30
+    local boxH = 32
+    local boxX = (screenW - boxW) / 2
+    local boxY = screenH - 80
+
+    -- Pulsing effect
+    local pulse = math.sin(love.timer.getTime() * 4) * 0.15 + 0.85
+
+    -- Background
+    setColor(0.08, 0.12, 0.18, 0.9 * pulse)
+    love.graphics.rectangle("fill", boxX, boxY, boxW, boxH, 8, 8)
+
+    -- Border with glow
+    setColor(0.55, 0.85, 0.65, pulse)
+    love.graphics.setLineWidth(2)
+    love.graphics.rectangle("line", boxX, boxY, boxW, boxH, 8, 8)
+
+    -- Text
+    setColor(0.85, 1, 0.90, pulse)
+    love.graphics.print(prompt, boxX + 15, boxY + 8)
 end
 
 function WorldMap:drawMessageOverlay()
@@ -402,7 +562,7 @@ function WorldMap:drawMessageOverlay()
     local duration = self.messageSystem.messageDuration
     local fadeIn = self.messageSystem.fadeInTime
     local fadeOut = self.messageSystem.fadeOutTime
-    
+
     -- Calculate alpha based on fade in/out
     local alpha = 1.0
     if timer < fadeIn then
@@ -410,43 +570,105 @@ function WorldMap:drawMessageOverlay()
     elseif timer > duration - fadeOut then
         alpha = (duration - timer) / fadeOut
     end
-    
-    -- Semi-transparent background
-    setColor(0, 0, 0, 0.7 * alpha)
+
+    -- Semi-transparent background with vignette
+    setColor(0, 0, 0, 0.6 * alpha)
     love.graphics.rectangle("fill", 0, 0, screenW, screenH)
-    
-    -- Message box
-    local boxWidth = 600
-    local boxHeight = 200
+
+    -- Message box dimensions
+    local boxWidth = 620
+    local boxHeight = 220
     local boxX = (screenW - boxWidth) / 2
     local boxY = (screenH - boxHeight) / 2
-    
-    setColor(0.1, 0.1, 0.2, 0.9 * alpha)
-    love.graphics.rectangle("fill", boxX, boxY, boxWidth, boxHeight)
-    setColor(0.8, 0.8, 0.8, alpha)
+
+    -- Outer glow/shadow
+    setColor(0, 0, 0, 0.5 * alpha)
+    love.graphics.rectangle("fill", boxX - 4, boxY - 4, boxWidth + 8, boxHeight + 8, 12, 12)
+
+    -- Main box background
+    setColor(0.06, 0.10, 0.16, 0.95 * alpha)
+    love.graphics.rectangle("fill", boxX, boxY, boxWidth, boxHeight, 8, 8)
+
+    -- Inner panel (slightly lighter)
+    setColor(0.10, 0.14, 0.20, 0.9 * alpha)
+    love.graphics.rectangle("fill", boxX + 4, boxY + 4, boxWidth - 8, boxHeight - 8, 6, 6)
+
+    -- Decorative border
     love.graphics.setLineWidth(3)
-    love.graphics.rectangle("line", boxX, boxY, boxWidth, boxHeight)
-    
-    -- Title
-    setColor(1, 1, 0.8, alpha)
-    love.graphics.printf(msg.title, boxX + 20, boxY + 20, boxWidth - 40, "center")
-    
+    setColor(0.45, 0.60, 0.75, alpha)
+    love.graphics.rectangle("line", boxX, boxY, boxWidth, boxHeight, 8, 8)
+
+    -- Inner highlight border
+    love.graphics.setLineWidth(1)
+    setColor(0.55, 0.70, 0.85, 0.4 * alpha)
+    love.graphics.rectangle("line", boxX + 3, boxY + 3, boxWidth - 6, boxHeight - 6, 6, 6)
+
+    -- Corner decorations
+    local cornerSize = 12
+    setColor(0.55, 0.70, 0.85, alpha)
+    -- Top-left
+    love.graphics.rectangle("fill", boxX + 8, boxY + 8, cornerSize, 2)
+    love.graphics.rectangle("fill", boxX + 8, boxY + 8, 2, cornerSize)
+    -- Top-right
+    love.graphics.rectangle("fill", boxX + boxWidth - 8 - cornerSize, boxY + 8, cornerSize, 2)
+    love.graphics.rectangle("fill", boxX + boxWidth - 10, boxY + 8, 2, cornerSize)
+    -- Bottom-left
+    love.graphics.rectangle("fill", boxX + 8, boxY + boxHeight - 10, cornerSize, 2)
+    love.graphics.rectangle("fill", boxX + 8, boxY + boxHeight - 8 - cornerSize, 2, cornerSize)
+    -- Bottom-right
+    love.graphics.rectangle("fill", boxX + boxWidth - 8 - cornerSize, boxY + boxHeight - 10, cornerSize, 2)
+    love.graphics.rectangle("fill", boxX + boxWidth - 10, boxY + boxHeight - 8 - cornerSize, 2, cornerSize)
+
+    -- Discovery icon (star burst effect)
+    local iconX = boxX + boxWidth / 2
+    local iconY = boxY + 35
+    local starPulse = math.sin(love.timer.getTime() * 5) * 0.2 + 1
+    setColor(0.95, 0.85, 0.45, alpha)
+    for i = 0, 7 do
+        local angle = (i / 8) * math.pi * 2 + love.timer.getTime()
+        local len = 12 * starPulse
+        love.graphics.line(
+            iconX, iconY,
+            iconX + math.cos(angle) * len, iconY + math.sin(angle) * len
+        )
+    end
+    love.graphics.circle("fill", iconX, iconY, 6)
+
+    -- Title with badge background
+    local font = love.graphics.getFont()
+    local titleWidth = font:getWidth(msg.title)
+    setColor(0.20, 0.28, 0.38, 0.9 * alpha)
+    love.graphics.rectangle("fill", boxX + (boxWidth - titleWidth) / 2 - 15, boxY + 55, titleWidth + 30, 28, 4, 4)
+    setColor(0.45, 0.60, 0.75, alpha)
+    love.graphics.setLineWidth(1)
+    love.graphics.rectangle("line", boxX + (boxWidth - titleWidth) / 2 - 15, boxY + 55, titleWidth + 30, 28, 4, 4)
+
+    setColor(0.95, 0.90, 0.70, alpha)
+    love.graphics.printf(msg.title, boxX + 20, boxY + 60, boxWidth - 40, "center")
+
     -- Message text
-    setColor(1, 1, 1, alpha)
-    love.graphics.printf(msg.message, boxX + 20, boxY + 60, boxWidth - 40, "left")
-    
-    -- Progress bar
-    local progressWidth = boxWidth - 40
-    local progressHeight = 4
-    local progressX = boxX + 20
-    local progressY = boxY + boxHeight - 30
-    
-    setColor(0.3, 0.3, 0.3, alpha)
-    love.graphics.rectangle("fill", progressX, progressY, progressWidth, progressHeight)
-    
+    setColor(0.90, 0.92, 0.95, alpha)
+    love.graphics.printf(msg.message, boxX + 25, boxY + 100, boxWidth - 50, "left")
+
+    -- Progress bar with styled appearance
+    local progressWidth = boxWidth - 50
+    local progressHeight = 8
+    local progressX = boxX + 25
+    local progressY = boxY + boxHeight - 35
+
+    -- Progress bar background
+    setColor(0.15, 0.20, 0.25, alpha)
+    love.graphics.rectangle("fill", progressX, progressY, progressWidth, progressHeight, 3, 3)
+
+    -- Progress bar fill
     local progress = timer / duration
-    setColor(0.8, 0.8, 0.2, alpha)
-    love.graphics.rectangle("fill", progressX, progressY, progressWidth * progress, progressHeight)
+    local gradientColor = {0.45, 0.70, 0.85}
+    setColor(gradientColor[1], gradientColor[2], gradientColor[3], alpha)
+    love.graphics.rectangle("fill", progressX + 2, progressY + 2, (progressWidth - 4) * progress, progressHeight - 4, 2, 2)
+
+    -- Progress bar highlight
+    setColor(gradientColor[1] + 0.2, gradientColor[2] + 0.2, gradientColor[3] + 0.2, 0.6 * alpha)
+    love.graphics.rectangle("fill", progressX + 2, progressY + 2, (progressWidth - 4) * progress, (progressHeight - 4) / 2, 2, 2)
 end
 
 function WorldMap:keypressed(key)
@@ -458,6 +680,15 @@ function WorldMap:keypressed(key)
         Gamestate:pop()
     elseif key == "f5" then
         self:saveGame()
+    elseif key == "space" then
+        -- Enter nearby POI
+        if self.nearbyPOI then
+            if self.nearbyPOI.name == "Rivertown" or self.nearbyPOI.levelType == "town" then
+                self:enterTown()
+            else
+                self:enterLevel(self.nearbyPOI)
+            end
+        end
     end
 end
 
@@ -508,7 +739,10 @@ function WorldMap:saveGame()
             name = poi.name,
             message = poi.message,
             discovered = poi.discovered,
-            color = poi.color
+            color = poi.color,
+            levelType = poi.levelType,
+            levelSeed = poi.levelSeed,
+            visited = poi.visited
         })
     end
     
@@ -527,34 +761,36 @@ function WorldMap:saveGame()
     end
 end
 
-function WorldMap:serializeSaveData(data)
-    local result = "return {\n"
-    
+function WorldMap:serializeData(data, indent)
+    indent = indent or ""
+    local result = "{\n"
+    local nextIndent = indent .. "  "
+
     for key, value in pairs(data) do
-        if type(value) == "string" then
-            result = result .. string.format("  %s = \"%s\",\n", key, value)
-        elseif type(value) == "table" then
-            result = result .. string.format("  %s = {\n", key)
-            for i, v in ipairs(value) do
-                if type(v) == "table" then
-                    -- Handle nested tables (like color arrays)
-                    result = result .. "    {\n"
-                    for j, subV in ipairs(v) do
-                        result = result .. string.format("      %s,\n", tostring(subV))
-                    end
-                    result = result .. "    },\n"
-                else
-                    result = result .. string.format("    %s,\n", tostring(v))
-                end
-            end
-            result = result .. "  },\n"
+        local keyStr
+        if type(key) == "number" then
+            keyStr = ""  -- Array index, no key needed
         else
-            result = result .. string.format("  %s = %s,\n", key, tostring(value))
+            keyStr = key .. " = "
+        end
+
+        if type(value) == "string" then
+            result = result .. nextIndent .. keyStr .. "\"" .. value .. "\",\n"
+        elseif type(value) == "boolean" then
+            result = result .. nextIndent .. keyStr .. tostring(value) .. ",\n"
+        elseif type(value) == "table" then
+            result = result .. nextIndent .. keyStr .. self:serializeData(value, nextIndent) .. ",\n"
+        else
+            result = result .. nextIndent .. keyStr .. tostring(value) .. ",\n"
         end
     end
-    
-    result = result .. "}\n"
+
+    result = result .. indent .. "}"
     return result
+end
+
+function WorldMap:serializeSaveData(data)
+    return "return " .. self:serializeData(data) .. "\n"
 end
 
 return WorldMap
