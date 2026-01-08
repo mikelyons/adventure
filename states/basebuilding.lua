@@ -4,16 +4,7 @@
 
 local BaseBuilding = {}
 local Paperdoll = require "paperdoll"
-
-local function setColor(r, g, b, a)
-    a = a or 1
-    local major = love.getVersion and love.getVersion() or 0
-    if type(major) == "number" and major >= 11 then
-        love.graphics.setColor(r, g, b, a)
-    else
-        love.graphics.setColor(r * 255, g * 255, b * 255, a * 255)
-    end
-end
+local Color = require("color")
 
 local function clamp(v, min, max)
     return v < min and min or (v > max and max or v)
@@ -485,7 +476,7 @@ function BaseBuilding:drawBackground()
             if shouldDither(worldX / tileSize + 17, worldY / tileSize + 23, 0.15) then
                 color = ground[3]
             end
-            setColor(color[1], color[2], color[3], 1)
+            Color.set(color[1], color[2], color[3], 1)
             love.graphics.rectangle("fill", px, py, tileSize, tileSize)
         end
     end
@@ -494,7 +485,7 @@ end
 function BaseBuilding:drawGrid()
     local palette = PALETTES[self.levelType] or PALETTES.ruins
     local gridColor = lerpColor(palette.ground[2], {0, 0, 0}, 0.3)
-    setColor(gridColor[1], gridColor[2], gridColor[3], 0.15)
+    Color.set(gridColor[1], gridColor[2], gridColor[3], 0.15)
     for y = 0, self.rows do
         love.graphics.line(0, y * self.gridSize, self.width, y * self.gridSize)
     end
@@ -532,7 +523,7 @@ function BaseBuilding:drawTile(gx, gy, tileType)
                 if py % 8 == 0 or py % 8 == 7 then
                     color = dark
                 end
-                setColor(color[1], color[2], color[3], 1)
+                Color.set(color[1], color[2], color[3], 1)
                 love.graphics.rectangle("fill", x + px, y + py, 1, 1)
             end
         end
@@ -549,16 +540,16 @@ function BaseBuilding:drawTile(gx, gy, tileType)
             {0, 10, 13, 11}, {28, 10, 4, 12}, {0, 21, 10, 11},
             {10, 22, 12, 10}, {22, 22, 10, 10}
         }
-        setColor(mortar[1], mortar[2], mortar[3], 1)
+        Color.set(mortar[1], mortar[2], mortar[3], 1)
         love.graphics.rectangle("fill", x, y, gs, gs)
         for _, stone in ipairs(stonePositions) do
             local sx, sy, sw, sh = stone[1], stone[2], stone[3], stone[4]
             local shade = ((gx + gy + sx) % 3) / 3
             local color = lerpColor(dark, light, shade)
-            setColor(color[1], color[2], color[3], 1)
+            Color.set(color[1], color[2], color[3], 1)
             love.graphics.rectangle("fill", x + sx + 1, y + sy + 1, sw - 2, sh - 2)
             -- Highlight edge
-            setColor(light[1], light[2], light[3], 0.5)
+            Color.set(light[1], light[2], light[3], 0.5)
             love.graphics.line(x + sx + 1, y + sy + 1, x + sx + sw - 2, y + sy + 1)
         end
 
@@ -575,7 +566,7 @@ function BaseBuilding:drawTile(gx, gy, tileType)
                 if shouldDither(x + px, y + py, 0.2) and pathBlend < 0.3 then
                     color = highlight
                 end
-                setColor(color[1], color[2], color[3], 1)
+                Color.set(color[1], color[2], color[3], 1)
                 love.graphics.rectangle("fill", x + px, y + py, 1, 1)
             end
         end
@@ -585,18 +576,18 @@ function BaseBuilding:drawTile(gx, gy, tileType)
         local base = {0.72, 0.28, 0.28}
         local accent = {0.85, 0.75, 0.35}
         local dark = {0.55, 0.18, 0.18}
-        setColor(base[1], base[2], base[3], 1)
+        Color.set(base[1], base[2], base[3], 1)
         love.graphics.rectangle("fill", x + 2, y + 2, gs - 4, gs - 4)
         -- Border
-        setColor(accent[1], accent[2], accent[3], 1)
+        Color.set(accent[1], accent[2], accent[3], 1)
         love.graphics.rectangle("fill", x + 2, y + 2, gs - 4, 3)
         love.graphics.rectangle("fill", x + 2, y + gs - 5, gs - 4, 3)
         love.graphics.rectangle("fill", x + 2, y + 2, 3, gs - 4)
         love.graphics.rectangle("fill", x + gs - 5, y + 2, 3, gs - 4)
         -- Center pattern
-        setColor(dark[1], dark[2], dark[3], 1)
+        Color.set(dark[1], dark[2], dark[3], 1)
         love.graphics.rectangle("fill", x + gs/2 - 4, y + gs/2 - 4, 8, 8)
-        setColor(accent[1], accent[2], accent[3], 1)
+        Color.set(accent[1], accent[2], accent[3], 1)
         love.graphics.rectangle("fill", x + gs/2 - 2, y + gs/2 - 2, 4, 4)
 
     else
@@ -604,14 +595,14 @@ function BaseBuilding:drawTile(gx, gy, tileType)
         local base = def.color
         local dark = {base[1] * 0.8, base[2] * 0.8, base[3] * 0.8}
         local light = {math.min(base[1] * 1.2, 1), math.min(base[2] * 1.2, 1), math.min(base[3] * 1.2, 1)}
-        setColor(base[1], base[2], base[3], 1)
+        Color.set(base[1], base[2], base[3], 1)
         love.graphics.rectangle("fill", x + 1, y + 1, gs - 2, gs - 2)
         -- Top/left highlight
-        setColor(light[1], light[2], light[3], 0.5)
+        Color.set(light[1], light[2], light[3], 0.5)
         love.graphics.line(x + 1, y + 1, x + gs - 2, y + 1)
         love.graphics.line(x + 1, y + 1, x + 1, y + gs - 2)
         -- Bottom/right shadow
-        setColor(dark[1], dark[2], dark[3], 0.5)
+        Color.set(dark[1], dark[2], dark[3], 0.5)
         love.graphics.line(x + 1, y + gs - 2, x + gs - 2, y + gs - 2)
         love.graphics.line(x + gs - 2, y + 1, x + gs - 2, y + gs - 2)
     end
@@ -635,7 +626,7 @@ function BaseBuilding:drawObject(gx, gy, objType)
         local leafLight = {0.35, 0.68, 0.38}
 
         -- Shadow
-        setColor(0, 0, 0, 0.2)
+        Color.set(0, 0, 0, 0.2)
         love.graphics.ellipse("fill", x + gs/2 + 4, y + gs - 4, gs*0.35, gs*0.12)
 
         -- Trunk with bark texture
@@ -646,24 +637,24 @@ function BaseBuilding:drawObject(gx, gy, objType)
                 if barkNoise > 0.3 then color = trunkLight
                 elseif barkNoise < -0.3 then color = trunkDark
                 else color = trunkBase end
-                setColor(color[1], color[2], color[3], 1)
+                Color.set(color[1], color[2], color[3], 1)
                 love.graphics.rectangle("fill", x + px, y + py, 1, 1)
             end
         end
 
         -- Layered canopy (back layer)
-        setColor(leafDark[1], leafDark[2], leafDark[3], 1)
+        Color.set(leafDark[1], leafDark[2], leafDark[3], 1)
         love.graphics.circle("fill", x + gs*0.35, y + gs*0.32, gs*0.28)
         love.graphics.circle("fill", x + gs*0.65, y + gs*0.35, gs*0.25)
 
         -- Middle layer
-        setColor(leafBase[1], leafBase[2], leafBase[3], 1)
+        Color.set(leafBase[1], leafBase[2], leafBase[3], 1)
         love.graphics.circle("fill", x + gs*0.5, y + gs*0.30, gs*0.35)
         love.graphics.circle("fill", x + gs*0.38, y + gs*0.40, gs*0.22)
         love.graphics.circle("fill", x + gs*0.62, y + gs*0.38, gs*0.22)
 
         -- Highlight layer
-        setColor(leafLight[1], leafLight[2], leafLight[3], 1)
+        Color.set(leafLight[1], leafLight[2], leafLight[3], 1)
         love.graphics.circle("fill", x + gs*0.45, y + gs*0.25, gs*0.18)
         love.graphics.circle("fill", x + gs*0.58, y + gs*0.28, gs*0.15)
 
@@ -675,11 +666,11 @@ function BaseBuilding:drawObject(gx, gy, objType)
         local rockHighlight = {0.78, 0.75, 0.72}
 
         -- Shadow
-        setColor(0, 0, 0, 0.2)
+        Color.set(0, 0, 0, 0.2)
         love.graphics.ellipse("fill", x + gs/2 + 3, y + gs*0.85, gs*0.38, gs*0.12)
 
         -- Main rock body (multi-faceted)
-        setColor(rockBase[1], rockBase[2], rockBase[3], 1)
+        Color.set(rockBase[1], rockBase[2], rockBase[3], 1)
         love.graphics.polygon("fill",
             x + gs*0.15, y + gs*0.75,
             x + gs*0.25, y + gs*0.35,
@@ -689,7 +680,7 @@ function BaseBuilding:drawObject(gx, gy, objType)
             x + gs*0.50, y + gs*0.88)
 
         -- Light facet
-        setColor(rockLight[1], rockLight[2], rockLight[3], 1)
+        Color.set(rockLight[1], rockLight[2], rockLight[3], 1)
         love.graphics.polygon("fill",
             x + gs*0.25, y + gs*0.35,
             x + gs*0.55, y + gs*0.18,
@@ -697,14 +688,14 @@ function BaseBuilding:drawObject(gx, gy, objType)
             x + gs*0.30, y + gs*0.55)
 
         -- Highlight
-        setColor(rockHighlight[1], rockHighlight[2], rockHighlight[3], 1)
+        Color.set(rockHighlight[1], rockHighlight[2], rockHighlight[3], 1)
         love.graphics.polygon("fill",
             x + gs*0.35, y + gs*0.28,
             x + gs*0.50, y + gs*0.22,
             x + gs*0.45, y + gs*0.38)
 
         -- Dark facet
-        setColor(rockDark[1], rockDark[2], rockDark[3], 1)
+        Color.set(rockDark[1], rockDark[2], rockDark[3], 1)
         love.graphics.polygon("fill",
             x + gs*0.50, y + gs*0.50,
             x + gs*0.80, y + gs*0.45,
@@ -719,27 +710,27 @@ function BaseBuilding:drawObject(gx, gy, objType)
         local berry = {0.85, 0.25, 0.28}
 
         -- Shadow
-        setColor(0, 0, 0, 0.15)
+        Color.set(0, 0, 0, 0.15)
         love.graphics.ellipse("fill", x + gs/2 + 2, y + gs*0.88, gs*0.35, gs*0.10)
 
         -- Bush layers
-        setColor(leafDark[1], leafDark[2], leafDark[3], 1)
+        Color.set(leafDark[1], leafDark[2], leafDark[3], 1)
         love.graphics.circle("fill", x + gs*0.35, y + gs*0.65, gs*0.28)
         love.graphics.circle("fill", x + gs*0.65, y + gs*0.62, gs*0.25)
 
-        setColor(leafBase[1], leafBase[2], leafBase[3], 1)
+        Color.set(leafBase[1], leafBase[2], leafBase[3], 1)
         love.graphics.circle("fill", x + gs*0.5, y + gs*0.58, gs*0.32)
 
-        setColor(leafLight[1], leafLight[2], leafLight[3], 1)
+        Color.set(leafLight[1], leafLight[2], leafLight[3], 1)
         love.graphics.circle("fill", x + gs*0.45, y + gs*0.52, gs*0.18)
         love.graphics.circle("fill", x + gs*0.58, y + gs*0.55, gs*0.14)
 
         -- Berries
-        setColor(berry[1], berry[2], berry[3], 1)
+        Color.set(berry[1], berry[2], berry[3], 1)
         love.graphics.circle("fill", x + gs*0.35, y + gs*0.55, 2)
         love.graphics.circle("fill", x + gs*0.62, y + gs*0.50, 2)
         love.graphics.circle("fill", x + gs*0.48, y + gs*0.68, 2)
-        setColor(1, 0.8, 0.8, 0.8)
+        Color.set(1, 0.8, 0.8, 0.8)
         love.graphics.circle("fill", x + gs*0.34, y + gs*0.54, 1)
 
     elseif objType == "campfire" then
@@ -751,7 +742,7 @@ function BaseBuilding:drawObject(gx, gy, objType)
 
         -- Fire glow
         local glowSize = 0.5 + math.sin(time * 3) * 0.1
-        setColor(1, 0.5, 0.1, 0.15)
+        Color.set(1, 0.5, 0.1, 0.15)
         love.graphics.circle("fill", x + gs/2, y + gs*0.55, gs * glowSize)
 
         -- Stone ring
@@ -760,18 +751,18 @@ function BaseBuilding:drawObject(gx, gy, objType)
             local sx = x + gs/2 + math.cos(angle) * gs * 0.35
             local sy = y + gs*0.65 + math.sin(angle) * gs * 0.20
             local shade = (i % 2 == 0) and stoneBase or stoneDark
-            setColor(shade[1], shade[2], shade[3], 1)
+            Color.set(shade[1], shade[2], shade[3], 1)
             love.graphics.circle("fill", sx, sy, gs * 0.10)
         end
 
         -- Logs
-        setColor(logBase[1], logBase[2], logBase[3], 1)
+        Color.set(logBase[1], logBase[2], logBase[3], 1)
         love.graphics.polygon("fill",
             x + gs*0.25, y + gs*0.72,
             x + gs*0.30, y + gs*0.58,
             x + gs*0.65, y + gs*0.68,
             x + gs*0.60, y + gs*0.78)
-        setColor(logDark[1], logDark[2], logDark[3], 1)
+        Color.set(logDark[1], logDark[2], logDark[3], 1)
         love.graphics.polygon("fill",
             x + gs*0.35, y + gs*0.78,
             x + gs*0.42, y + gs*0.62,
@@ -784,28 +775,28 @@ function BaseBuilding:drawObject(gx, gy, objType)
         local flicker3 = math.sin(time * 10 + 2) * 0.18 + 0.82
 
         -- Outer flame
-        setColor(1, 0.35, 0.1, 0.9)
+        Color.set(1, 0.35, 0.1, 0.9)
         love.graphics.polygon("fill",
             x + gs*0.35, y + gs*0.65,
             x + gs*0.50, y + gs*0.25 * flicker1,
             x + gs*0.65, y + gs*0.65)
 
         -- Middle flame
-        setColor(1, 0.55, 0.15, 0.95)
+        Color.set(1, 0.55, 0.15, 0.95)
         love.graphics.polygon("fill",
             x + gs*0.40, y + gs*0.62,
             x + gs*0.50, y + gs*0.32 * flicker2,
             x + gs*0.60, y + gs*0.62)
 
         -- Inner flame (yellow core)
-        setColor(1, 0.90, 0.35, 1)
+        Color.set(1, 0.90, 0.35, 1)
         love.graphics.polygon("fill",
             x + gs*0.44, y + gs*0.58,
             x + gs*0.50, y + gs*0.40 * flicker3,
             x + gs*0.56, y + gs*0.58)
 
         -- Sparks
-        setColor(1, 0.8, 0.3, 0.8)
+        Color.set(1, 0.8, 0.3, 0.8)
         local sparkY = (time * 30) % gs * 0.3
         love.graphics.circle("fill", x + gs*0.45, y + gs*0.35 - sparkY, 1)
         love.graphics.circle("fill", x + gs*0.55, y + gs*0.38 - sparkY * 0.8, 1)
@@ -817,23 +808,23 @@ function BaseBuilding:drawObject(gx, gy, objType)
 
         -- Glow
         local glowSize = 0.35 + math.sin(time * 4) * 0.05
-        setColor(1, 0.6, 0.2, 0.12)
+        Color.set(1, 0.6, 0.2, 0.12)
         love.graphics.circle("fill", x + gs/2, y + gs*0.35, gs * glowSize)
 
         -- Torch handle
-        setColor(woodBase[1], woodBase[2], woodBase[3], 1)
+        Color.set(woodBase[1], woodBase[2], woodBase[3], 1)
         love.graphics.rectangle("fill", x + gs*0.42, y + gs*0.45, gs*0.16, gs*0.50)
-        setColor(woodDark[1], woodDark[2], woodDark[3], 1)
+        Color.set(woodDark[1], woodDark[2], woodDark[3], 1)
         love.graphics.rectangle("fill", x + gs*0.42, y + gs*0.45, gs*0.04, gs*0.50)
 
         -- Flame
         local flicker = math.sin(time * 14) * 0.1 + 0.9
-        setColor(1, 0.4, 0.1, 0.9)
+        Color.set(1, 0.4, 0.1, 0.9)
         love.graphics.polygon("fill",
             x + gs*0.35, y + gs*0.48,
             x + gs*0.50, y + gs*0.15 * flicker,
             x + gs*0.65, y + gs*0.48)
-        setColor(1, 0.75, 0.25, 1)
+        Color.set(1, 0.75, 0.25, 1)
         love.graphics.polygon("fill",
             x + gs*0.42, y + gs*0.45,
             x + gs*0.50, y + gs*0.25 * flicker,
@@ -848,29 +839,29 @@ function BaseBuilding:drawObject(gx, gy, objType)
         local pillowBase = {0.92, 0.90, 0.85}
 
         -- Frame
-        setColor(frameDark[1], frameDark[2], frameDark[3], 1)
+        Color.set(frameDark[1], frameDark[2], frameDark[3], 1)
         love.graphics.rectangle("fill", x + 2, y + gs - 8, gs - 4, 6)
-        setColor(frameBase[1], frameBase[2], frameBase[3], 1)
+        Color.set(frameBase[1], frameBase[2], frameBase[3], 1)
         love.graphics.rectangle("fill", x + 2, y + 4, 4, gs - 10)
         love.graphics.rectangle("fill", x + gs - 6, y + 4, 4, gs - 10)
 
         -- Headboard
-        setColor(frameBase[1], frameBase[2], frameBase[3], 1)
+        Color.set(frameBase[1], frameBase[2], frameBase[3], 1)
         love.graphics.rectangle("fill", x + 2, y + 2, gs - 4, 8)
-        setColor(frameDark[1], frameDark[2], frameDark[3], 1)
+        Color.set(frameDark[1], frameDark[2], frameDark[3], 1)
         love.graphics.line(x + 4, y + 3, x + 4, y + 8)
         love.graphics.line(x + gs - 5, y + 3, x + gs - 5, y + 8)
 
         -- Blanket
-        setColor(blanketBase[1], blanketBase[2], blanketBase[3], 1)
+        Color.set(blanketBase[1], blanketBase[2], blanketBase[3], 1)
         love.graphics.rectangle("fill", x + 5, y + 12, gs - 10, gs - 20)
-        setColor(blanketLight[1], blanketLight[2], blanketLight[3], 1)
+        Color.set(blanketLight[1], blanketLight[2], blanketLight[3], 1)
         love.graphics.rectangle("fill", x + 5, y + 12, gs - 10, 4)
 
         -- Pillow
-        setColor(pillowBase[1], pillowBase[2], pillowBase[3], 1)
+        Color.set(pillowBase[1], pillowBase[2], pillowBase[3], 1)
         love.graphics.rectangle("fill", x + 6, y + 5, gs - 12, 8)
-        setColor(0.85, 0.82, 0.78, 1)
+        Color.set(0.85, 0.82, 0.78, 1)
         love.graphics.line(x + 8, y + 8, x + gs - 9, y + 8)
 
     elseif objType == "table" then
@@ -880,24 +871,24 @@ function BaseBuilding:drawObject(gx, gy, objType)
         local legDark = {0.42, 0.32, 0.22}
 
         -- Shadow
-        setColor(0, 0, 0, 0.15)
+        Color.set(0, 0, 0, 0.15)
         love.graphics.rectangle("fill", x + 6, y + gs - 4, gs - 10, 3)
 
         -- Legs
-        setColor(legDark[1], legDark[2], legDark[3], 1)
+        Color.set(legDark[1], legDark[2], legDark[3], 1)
         love.graphics.rectangle("fill", x + 4, y + gs*0.6, 4, gs*0.35)
         love.graphics.rectangle("fill", x + gs - 8, y + gs*0.6, 4, gs*0.35)
 
         -- Tabletop
-        setColor(topBase[1], topBase[2], topBase[3], 1)
+        Color.set(topBase[1], topBase[2], topBase[3], 1)
         love.graphics.rectangle("fill", x + 2, y + gs*0.25, gs - 4, gs*0.40)
         -- Wood grain
-        setColor(topLight[1], topLight[2], topLight[3], 0.6)
+        Color.set(topLight[1], topLight[2], topLight[3], 0.6)
         for i = 0, 4 do
             love.graphics.line(x + 4, y + gs*0.28 + i*5, x + gs - 5, y + gs*0.30 + i*5)
         end
         -- Edge highlight
-        setColor(topLight[1], topLight[2], topLight[3], 1)
+        Color.set(topLight[1], topLight[2], topLight[3], 1)
         love.graphics.rectangle("fill", x + 2, y + gs*0.25, gs - 4, 2)
 
     elseif objType == "chair" then
@@ -907,20 +898,20 @@ function BaseBuilding:drawObject(gx, gy, objType)
         local cushion = {0.65, 0.32, 0.28}
 
         -- Back legs
-        setColor(frameDark[1], frameDark[2], frameDark[3], 1)
+        Color.set(frameDark[1], frameDark[2], frameDark[3], 1)
         love.graphics.rectangle("fill", x + 6, y + 4, 3, gs - 8)
         love.graphics.rectangle("fill", x + gs - 9, y + 4, 3, gs - 8)
 
         -- Back
-        setColor(frameBase[1], frameBase[2], frameBase[3], 1)
+        Color.set(frameBase[1], frameBase[2], frameBase[3], 1)
         love.graphics.rectangle("fill", x + 5, y + 4, gs - 10, 10)
 
         -- Seat
-        setColor(cushion[1], cushion[2], cushion[3], 1)
+        Color.set(cushion[1], cushion[2], cushion[3], 1)
         love.graphics.rectangle("fill", x + 4, y + gs*0.45, gs - 8, gs*0.30)
 
         -- Front legs
-        setColor(frameDark[1], frameDark[2], frameDark[3], 1)
+        Color.set(frameDark[1], frameDark[2], frameDark[3], 1)
         love.graphics.rectangle("fill", x + 4, y + gs*0.70, 3, gs*0.25)
         love.graphics.rectangle("fill", x + gs - 7, y + gs*0.70, 3, gs*0.25)
 
@@ -932,29 +923,29 @@ function BaseBuilding:drawObject(gx, gy, objType)
         local metalDark = {0.55, 0.48, 0.25}
 
         -- Shadow
-        setColor(0, 0, 0, 0.2)
+        Color.set(0, 0, 0, 0.2)
         love.graphics.ellipse("fill", x + gs/2 + 2, y + gs - 3, gs*0.40, 4)
 
         -- Chest body
-        setColor(woodBase[1], woodBase[2], woodBase[3], 1)
+        Color.set(woodBase[1], woodBase[2], woodBase[3], 1)
         love.graphics.rectangle("fill", x + 3, y + gs*0.35, gs - 6, gs*0.55)
-        setColor(woodDark[1], woodDark[2], woodDark[3], 1)
+        Color.set(woodDark[1], woodDark[2], woodDark[3], 1)
         love.graphics.rectangle("fill", x + 3, y + gs*0.35, gs - 6, 3)
 
         -- Lid (arched)
-        setColor(woodBase[1], woodBase[2], woodBase[3], 1)
+        Color.set(woodBase[1], woodBase[2], woodBase[3], 1)
         love.graphics.arc("fill", x + gs/2, y + gs*0.38, gs*0.47, math.pi, 0)
 
         -- Metal bands
-        setColor(metalBase[1], metalBase[2], metalBase[3], 1)
+        Color.set(metalBase[1], metalBase[2], metalBase[3], 1)
         love.graphics.rectangle("fill", x + 3, y + gs*0.50, gs - 6, 3)
         love.graphics.rectangle("fill", x + 3, y + gs*0.75, gs - 6, 3)
         love.graphics.rectangle("fill", x + gs/2 - 2, y + gs*0.18, 4, gs*0.35)
 
         -- Lock
-        setColor(metalDark[1], metalDark[2], metalDark[3], 1)
+        Color.set(metalDark[1], metalDark[2], metalDark[3], 1)
         love.graphics.rectangle("fill", x + gs/2 - 4, y + gs*0.55, 8, 10)
-        setColor(0.2, 0.2, 0.22, 1)
+        Color.set(0.2, 0.2, 0.22, 1)
         love.graphics.circle("fill", x + gs/2, y + gs*0.62, 2)
 
     elseif objType == "workbench" then
@@ -964,29 +955,29 @@ function BaseBuilding:drawObject(gx, gy, objType)
         local metalBase = {0.55, 0.55, 0.58}
 
         -- Legs
-        setColor(benchDark[1], benchDark[2], benchDark[3], 1)
+        Color.set(benchDark[1], benchDark[2], benchDark[3], 1)
         love.graphics.rectangle("fill", x + 3, y + gs*0.55, 4, gs*0.40)
         love.graphics.rectangle("fill", x + gs - 7, y + gs*0.55, 4, gs*0.40)
 
         -- Top surface
-        setColor(benchBase[1], benchBase[2], benchBase[3], 1)
+        Color.set(benchBase[1], benchBase[2], benchBase[3], 1)
         love.graphics.rectangle("fill", x + 2, y + gs*0.25, gs - 4, gs*0.35)
         -- Wear marks
-        setColor(benchDark[1], benchDark[2], benchDark[3], 0.4)
+        Color.set(benchDark[1], benchDark[2], benchDark[3], 0.4)
         love.graphics.rectangle("fill", x + gs*0.3, y + gs*0.30, 8, 3)
         love.graphics.rectangle("fill", x + gs*0.55, y + gs*0.42, 6, 2)
 
         -- Tools
         -- Hammer
-        setColor(0.5, 0.4, 0.3, 1)
+        Color.set(0.5, 0.4, 0.3, 1)
         love.graphics.rectangle("fill", x + 5, y + gs*0.28, 2, 12)
-        setColor(metalBase[1], metalBase[2], metalBase[3], 1)
+        Color.set(metalBase[1], metalBase[2], metalBase[3], 1)
         love.graphics.rectangle("fill", x + 3, y + gs*0.28, 6, 5)
 
         -- Saw
-        setColor(metalBase[1], metalBase[2], metalBase[3], 1)
+        Color.set(metalBase[1], metalBase[2], metalBase[3], 1)
         love.graphics.rectangle("fill", x + gs - 14, y + gs*0.30, 10, 3)
-        setColor(0.5, 0.4, 0.3, 1)
+        Color.set(0.5, 0.4, 0.3, 1)
         love.graphics.rectangle("fill", x + gs - 8, y + gs*0.28, 5, 7)
 
     elseif objType == "wood_wall" then
@@ -997,13 +988,13 @@ function BaseBuilding:drawObject(gx, gy, objType)
 
         for i = 0, 3 do
             local shade = (i % 2 == 0) and plankBase or lerpColor(plankBase, plankLight, 0.3)
-            setColor(shade[1], shade[2], shade[3], 1)
+            Color.set(shade[1], shade[2], shade[3], 1)
             love.graphics.rectangle("fill", x + 1, y + i * 8, gs - 2, 7)
-            setColor(plankDark[1], plankDark[2], plankDark[3], 1)
+            Color.set(plankDark[1], plankDark[2], plankDark[3], 1)
             love.graphics.line(x + 1, y + i * 8 + 7, x + gs - 2, y + i * 8 + 7)
         end
         -- Nail details
-        setColor(0.4, 0.4, 0.42, 1)
+        Color.set(0.4, 0.4, 0.42, 1)
         love.graphics.circle("fill", x + 4, y + 4, 1)
         love.graphics.circle("fill", x + gs - 5, y + 4, 1)
         love.graphics.circle("fill", x + 4, y + gs - 5, 1)
@@ -1016,7 +1007,7 @@ function BaseBuilding:drawObject(gx, gy, objType)
         local stoneLight = {0.58, 0.58, 0.62}
         local mortar = {0.30, 0.30, 0.32}
 
-        setColor(mortar[1], mortar[2], mortar[3], 1)
+        Color.set(mortar[1], mortar[2], mortar[3], 1)
         love.graphics.rectangle("fill", x, y, gs, gs)
 
         -- Draw irregular stones
@@ -1033,10 +1024,10 @@ function BaseBuilding:drawObject(gx, gy, objType)
             if shade == 0 then color = stoneDark
             elseif shade == 1 then color = stoneBase
             else color = stoneLight end
-            setColor(color[1], color[2], color[3], 1)
+            Color.set(color[1], color[2], color[3], 1)
             love.graphics.rectangle("fill", x + sx, y + sy, sw - 1, sh - 1)
             -- Highlight
-            setColor(stoneLight[1], stoneLight[2], stoneLight[3], 0.4)
+            Color.set(stoneLight[1], stoneLight[2], stoneLight[3], 0.4)
             love.graphics.line(x + sx, y + sy, x + sx + sw - 2, y + sy)
         end
 
@@ -1047,7 +1038,7 @@ function BaseBuilding:drawObject(gx, gy, objType)
         local woodLight = {0.68, 0.55, 0.40}
 
         -- Horizontal rails
-        setColor(woodBase[1], woodBase[2], woodBase[3], 1)
+        Color.set(woodBase[1], woodBase[2], woodBase[3], 1)
         love.graphics.rectangle("fill", x, y + gs*0.30, gs, 4)
         love.graphics.rectangle("fill", x, y + gs*0.70, gs, 4)
 
@@ -1055,7 +1046,7 @@ function BaseBuilding:drawObject(gx, gy, objType)
         for i = 0, 4 do
             local px = x + 2 + i * 6
             local shade = (i % 2 == 0) and woodBase or woodLight
-            setColor(shade[1], shade[2], shade[3], 1)
+            Color.set(shade[1], shade[2], shade[3], 1)
             love.graphics.rectangle("fill", px, y + 2, 4, gs - 4)
             -- Pointed top
             love.graphics.polygon("fill",
@@ -1063,7 +1054,7 @@ function BaseBuilding:drawObject(gx, gy, objType)
                 px + 2, y - 2,
                 px + 4, y + 2)
             -- Shadow
-            setColor(woodDark[1], woodDark[2], woodDark[3], 1)
+            Color.set(woodDark[1], woodDark[2], woodDark[3], 1)
             love.graphics.line(px + 3, y + 2, px + 3, y + gs - 5)
         end
 
@@ -1075,11 +1066,11 @@ function BaseBuilding:drawObject(gx, gy, objType)
         local flowerColors = {{0.95, 0.45, 0.55}, {0.95, 0.85, 0.40}, {0.65, 0.45, 0.85}}
 
         -- Shadow
-        setColor(0, 0, 0, 0.15)
+        Color.set(0, 0, 0, 0.15)
         love.graphics.ellipse("fill", x + gs/2 + 2, y + gs - 3, gs*0.35, 4)
 
         -- Pot
-        setColor(potBase[1], potBase[2], potBase[3], 1)
+        Color.set(potBase[1], potBase[2], potBase[3], 1)
         love.graphics.polygon("fill",
             x + gs*0.25, y + gs*0.45,
             x + gs*0.20, y + gs*0.95,
@@ -1088,7 +1079,7 @@ function BaseBuilding:drawObject(gx, gy, objType)
         -- Rim
         love.graphics.rectangle("fill", x + gs*0.22, y + gs*0.42, gs*0.56, 5)
         -- Shading
-        setColor(potDark[1], potDark[2], potDark[3], 1)
+        Color.set(potDark[1], potDark[2], potDark[3], 1)
         love.graphics.polygon("fill",
             x + gs*0.65, y + gs*0.45,
             x + gs*0.70, y + gs*0.95,
@@ -1096,24 +1087,24 @@ function BaseBuilding:drawObject(gx, gy, objType)
             x + gs*0.75, y + gs*0.45)
 
         -- Dirt
-        setColor(dirtColor[1], dirtColor[2], dirtColor[3], 1)
+        Color.set(dirtColor[1], dirtColor[2], dirtColor[3], 1)
         love.graphics.ellipse("fill", x + gs/2, y + gs*0.45, gs*0.25, 4)
 
         -- Flowers (use position-based selection)
         local flowerIdx = ((gx + gy) % 3) + 1
         local flower = flowerColors[flowerIdx]
         -- Stems
-        setColor(0.25, 0.50, 0.28, 1)
+        Color.set(0.25, 0.50, 0.28, 1)
         love.graphics.line(x + gs*0.35, y + gs*0.42, x + gs*0.38, y + gs*0.18)
         love.graphics.line(x + gs*0.50, y + gs*0.42, x + gs*0.50, y + gs*0.12)
         love.graphics.line(x + gs*0.65, y + gs*0.42, x + gs*0.62, y + gs*0.20)
         -- Petals
-        setColor(flower[1], flower[2], flower[3], 1)
+        Color.set(flower[1], flower[2], flower[3], 1)
         love.graphics.circle("fill", x + gs*0.38, y + gs*0.15, 4)
         love.graphics.circle("fill", x + gs*0.50, y + gs*0.10, 5)
         love.graphics.circle("fill", x + gs*0.62, y + gs*0.18, 4)
         -- Centers
-        setColor(0.95, 0.85, 0.35, 1)
+        Color.set(0.95, 0.85, 0.35, 1)
         love.graphics.circle("fill", x + gs*0.38, y + gs*0.15, 2)
         love.graphics.circle("fill", x + gs*0.50, y + gs*0.10, 2)
         love.graphics.circle("fill", x + gs*0.62, y + gs*0.18, 2)
@@ -1125,21 +1116,21 @@ function BaseBuilding:drawObject(gx, gy, objType)
         local light = {math.min(base[1] * 1.25, 1), math.min(base[2] * 1.25, 1), math.min(base[3] * 1.25, 1)}
 
         -- Shadow
-        setColor(0, 0, 0, 0.15)
+        Color.set(0, 0, 0, 0.15)
         love.graphics.ellipse("fill", x + gs/2 + 2, y + gs - 3, gs*0.35, 4)
 
         -- Main shape
         local margin = def.solid and 4 or 6
-        setColor(base[1], base[2], base[3], 1)
+        Color.set(base[1], base[2], base[3], 1)
         love.graphics.rectangle("fill", x + margin, y + margin, gs - margin*2, gs - margin*2)
 
         -- Highlight
-        setColor(light[1], light[2], light[3], 0.6)
+        Color.set(light[1], light[2], light[3], 0.6)
         love.graphics.rectangle("fill", x + margin, y + margin, gs - margin*2, 3)
         love.graphics.rectangle("fill", x + margin, y + margin, 3, gs - margin*2)
 
         -- Shadow edge
-        setColor(dark[1], dark[2], dark[3], 0.6)
+        Color.set(dark[1], dark[2], dark[3], 0.6)
         love.graphics.rectangle("fill", x + margin, y + gs - margin - 3, gs - margin*2, 3)
         love.graphics.rectangle("fill", x + gs - margin - 3, y + margin, 3, gs - margin*2)
     end
@@ -1150,7 +1141,7 @@ function BaseBuilding:drawPlayer()
     if p.character then
         p.character:draw(p.x - 16, p.y - 40, 2.5, p.facing)
     else
-        setColor(1, 1, 1, 1)
+        Color.set(1, 1, 1, 1)
         love.graphics.circle("fill", p.x, p.y, 12)
     end
 end
@@ -1178,12 +1169,12 @@ function BaseBuilding:drawBuildCursor()
 
     -- Draw preview
     if canPlace then
-        setColor(0.3, 0.9, 0.3, 0.5)
+        Color.set(0.3, 0.9, 0.3, 0.5)
     else
-        setColor(0.9, 0.3, 0.3, 0.5)
+        Color.set(0.9, 0.3, 0.3, 0.5)
     end
     love.graphics.rectangle("fill", x, y, self.gridSize, self.gridSize)
-    setColor(1, 1, 1, 0.8)
+    Color.set(1, 1, 1, 0.8)
     love.graphics.setLineWidth(2)
     love.graphics.rectangle("line", x, y, self.gridSize, self.gridSize)
 end
@@ -1192,9 +1183,9 @@ function BaseBuilding:drawUI()
     local sw, sh = love.graphics.getDimensions()
 
     -- Resources bar
-    setColor(0, 0, 0, 0.7)
+    Color.set(0, 0, 0, 0.7)
     love.graphics.rectangle("fill", 10, 10, 200, 80)
-    setColor(1, 1, 1, 1)
+    Color.set(1, 1, 1, 1)
     love.graphics.print("Resources:", 20, 15)
     love.graphics.print("Wood: " .. self.resources.wood, 20, 32)
     love.graphics.print("Stone: " .. self.resources.stone, 110, 32)
@@ -1203,9 +1194,9 @@ function BaseBuilding:drawUI()
     love.graphics.print(self.levelName, 20, 66)
 
     -- Controls
-    setColor(0, 0, 0, 0.7)
+    Color.set(0, 0, 0, 0.7)
     love.graphics.rectangle("fill", 10, sh - 70, 350, 60)
-    setColor(1, 1, 1, 1)
+    Color.set(1, 1, 1, 1)
     love.graphics.print("WASD: Move | B: Build Mode | C: Wardrobe | ESC: Exit", 20, sh - 62)
     love.graphics.print("LClick: Place/Harvest | RClick: Remove", 20, sh - 45)
     if self.buildMode then
@@ -1221,13 +1212,13 @@ end
 function BaseBuilding:drawBuildPanel()
     local sw, sh = love.graphics.getDimensions()
 
-    setColor(0, 0, 0, 0.85)
+    Color.set(0, 0, 0, 0.85)
     love.graphics.rectangle("fill", sw - 220, 10, 210, 300)
 
-    setColor(1, 1, 0.8, 1)
+    Color.set(1, 1, 0.8, 1)
     love.graphics.print("BUILD MODE", sw - 210, 15)
 
-    setColor(0.8, 0.8, 0.8, 1)
+    Color.set(0.8, 0.8, 0.8, 1)
     love.graphics.print("Category: " .. self.buildCategory, sw - 210, 35)
 
     -- List buildings in category
@@ -1238,14 +1229,14 @@ function BaseBuilding:drawBuildPanel()
            (self.buildCategory == "all") then
             local selected = self.selectedBuilding == id
             if selected then
-                setColor(0.3, 0.5, 0.8, 1)
+                Color.set(0.3, 0.5, 0.8, 1)
                 love.graphics.rectangle("fill", sw - 215, y - 2, 200, 18)
             end
 
-            setColor(def.color[1], def.color[2], def.color[3], 1)
+            Color.set(def.color[1], def.color[2], def.color[3], 1)
             love.graphics.rectangle("fill", sw - 210, y, 14, 14)
 
-            setColor(1, 1, 1, selected and 1 or 0.7)
+            Color.set(1, 1, 1, selected and 1 or 0.7)
             love.graphics.print(i .. ". " .. def.name, sw - 190, y)
 
             y = y + 20
@@ -1259,18 +1250,18 @@ function BaseBuilding:drawWardrobe()
     local sw, sh = love.graphics.getDimensions()
 
     -- Overlay
-    setColor(0, 0, 0, 0.8)
+    Color.set(0, 0, 0, 0.8)
     love.graphics.rectangle("fill", 0, 0, sw, sh)
 
     -- Panel
-    setColor(0.15, 0.15, 0.2, 1)
+    Color.set(0.15, 0.15, 0.2, 1)
     love.graphics.rectangle("fill", sw/2 - 300, 50, 600, sh - 100)
-    setColor(0.4, 0.4, 0.5, 1)
+    Color.set(0.4, 0.4, 0.5, 1)
     love.graphics.setLineWidth(3)
     love.graphics.rectangle("line", sw/2 - 300, 50, 600, sh - 100)
 
     -- Title
-    setColor(1, 1, 0.9, 1)
+    Color.set(1, 1, 0.9, 1)
     love.graphics.printf("WARDROBE", sw/2 - 290, 60, 580, "center")
 
     -- Character preview
@@ -1282,17 +1273,17 @@ function BaseBuilding:drawWardrobe()
     local categories = {"skin", "hair", "shirt", "pants", "shoes", "hat"}
     local catY = 250
 
-    setColor(1, 1, 1, 1)
+    Color.set(1, 1, 1, 1)
     love.graphics.print("Q/E: Category | A/D: Option | C: Close", sw/2 - 120, sh - 80)
 
     for i, cat in ipairs(categories) do
         local selected = self.wardrobeSelection.category == cat
         if selected then
-            setColor(0.3, 0.5, 0.7, 1)
+            Color.set(0.3, 0.5, 0.7, 1)
             love.graphics.rectangle("fill", sw/2 - 280, catY - 2, 250, 24)
         end
 
-        setColor(1, 1, 1, selected and 1 or 0.6)
+        Color.set(1, 1, 1, selected and 1 or 0.6)
         love.graphics.print(cat:upper(), sw/2 - 270, catY)
 
         -- Current value
@@ -1420,7 +1411,7 @@ function BaseBuilding:keypressed(key)
     end
 
     if key == "escape" then
-        Gamestate:pop()
+        Gamestate:push(require("states.pause"))
     elseif key == "b" then
         self.buildMode = not self.buildMode
     elseif key == "c" then

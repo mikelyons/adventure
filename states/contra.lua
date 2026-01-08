@@ -3,21 +3,7 @@
 -- Enhanced with high-fidelity retro graphics
 
 local Contra = {}
-
-local function setColor(r, g, b, a)
-    a = a or 1
-    local getVersion = love.getVersion
-    if getVersion then
-        local major = getVersion()
-        if type(major) == "number" then
-            if major >= 11 then
-                love.graphics.setColor(r, g, b, a)
-                return
-            end
-        end
-    end
-    love.graphics.setColor(r * 255, g * 255, b * 255, a * 255)
-end
+local Color = require("color")
 
 local function clamp(value, minValue, maxValue)
     if value < minValue then return minValue end
@@ -642,13 +628,13 @@ function Contra:draw()
     for _, part in ipairs(self.particles) do
         local alpha = part.life / part.maxLife
         -- Outer glow
-        setColor(part.color[1], part.color[2], part.color[3], alpha * 0.3)
+        Color.set(part.color[1], part.color[2], part.color[3], alpha * 0.3)
         love.graphics.circle("fill", part.x, part.y, part.size * 1.5)
         -- Core
-        setColor(part.color[1], part.color[2], part.color[3], alpha)
+        Color.set(part.color[1], part.color[2], part.color[3], alpha)
         love.graphics.circle("fill", part.x, part.y, part.size)
         -- Hot center
-        setColor(1, 1, 0.9, alpha * 0.8)
+        Color.set(1, 1, 0.9, alpha * 0.8)
         love.graphics.circle("fill", part.x, part.y, part.size * 0.4)
     end
 
@@ -672,32 +658,32 @@ function Contra:draw()
 
     -- Game over / Victory with enhanced styling
     if self.gameOver then
-        setColor(0, 0, 0, 0.75)
+        Color.set(0, 0, 0, 0.75)
         love.graphics.rectangle("fill", 0, 0, screenW, screenH)
         -- Red glow effect
-        setColor(0.8, 0.1, 0.1, 0.3)
+        Color.set(0.8, 0.1, 0.1, 0.3)
         love.graphics.rectangle("fill", 0, screenH/2 - 80, screenW, 160)
         -- Text
-        setColor(1, 0.3, 0.3, 1)
+        Color.set(1, 0.3, 0.3, 1)
         love.graphics.printf("GAME OVER", 0, screenH/2 - 40, screenW, "center")
-        setColor(0.8, 0.2, 0.2, 1)
+        Color.set(0.8, 0.2, 0.2, 1)
         love.graphics.printf("GAME OVER", 2, screenH/2 - 38, screenW, "center")
-        setColor(1, 1, 1, 1)
+        Color.set(1, 1, 1, 1)
         love.graphics.printf("Press ESC to return", 0, screenH/2 + 30, screenW, "center")
     elseif self.victory then
-        setColor(0, 0, 0, 0.75)
+        Color.set(0, 0, 0, 0.75)
         love.graphics.rectangle("fill", 0, 0, screenW, screenH)
         -- Green glow
-        setColor(0.1, 0.6, 0.2, 0.3)
+        Color.set(0.1, 0.6, 0.2, 0.3)
         love.graphics.rectangle("fill", 0, screenH/2 - 80, screenW, 160)
         -- Text
-        setColor(0.3, 1, 0.5, 1)
+        Color.set(0.3, 1, 0.5, 1)
         love.graphics.printf("VICTORY!", 0, screenH/2 - 40, screenW, "center")
-        setColor(0.2, 0.8, 0.4, 1)
+        Color.set(0.2, 0.8, 0.4, 1)
         love.graphics.printf("VICTORY!", 2, screenH/2 - 38, screenW, "center")
-        setColor(1, 1, 0.6, 1)
+        Color.set(1, 1, 0.6, 1)
         love.graphics.printf("Score: " .. self.score, 0, screenH/2 + 15, screenW, "center")
-        setColor(1, 1, 1, 1)
+        Color.set(1, 1, 1, 1)
         love.graphics.printf("Press ESC to return", 0, screenH/2 + 50, screenW, "center")
     end
 end
@@ -720,7 +706,7 @@ function Contra:drawPlatform(plat)
                 else
                     color = pal.rock[1]
                 end
-                setColor(color[1], color[2], color[3], 1)
+                Color.set(color[1], color[2], color[3], 1)
                 love.graphics.rectangle("fill", x + px, y + py, 8, 8)
             end
         end
@@ -728,12 +714,12 @@ function Contra:drawPlatform(plat)
         -- Top edge with grass/moss detail
         for px = 0, w - 1, 4 do
             local grassHeight = 3 + math.sin(px * 0.2) * 2
-            setColor(0.28, 0.45, 0.32, 1)
+            Color.set(0.28, 0.45, 0.32, 1)
             love.graphics.rectangle("fill", x + px, y - grassHeight, 4, grassHeight + 2)
         end
 
         -- Edge highlight
-        setColor(0.52, 0.45, 0.58, 0.8)
+        Color.set(0.52, 0.45, 0.58, 0.8)
         love.graphics.rectangle("fill", x, y, w, 3)
 
     else
@@ -741,21 +727,21 @@ function Contra:drawPlatform(plat)
         for py = 0, h - 1, 4 do
             for px = 0, w - 1, 4 do
                 local shade = ((px + py) % 8 < 4) and pal.metal[1] or pal.metal[2]
-                setColor(shade[1], shade[2], shade[3], 1)
+                Color.set(shade[1], shade[2], shade[3], 1)
                 love.graphics.rectangle("fill", x + px, y + py, 4, 4)
             end
         end
 
         -- Top highlight
-        setColor(pal.metal[3][1], pal.metal[3][2], pal.metal[3][3], 1)
+        Color.set(pal.metal[3][1], pal.metal[3][2], pal.metal[3][3], 1)
         love.graphics.rectangle("fill", x, y, w, 2)
 
         -- Bottom shadow
-        setColor(0.2, 0.18, 0.25, 0.8)
+        Color.set(0.2, 0.18, 0.25, 0.8)
         love.graphics.rectangle("fill", x + 2, y + h, w - 4, 3)
 
         -- Edge rivets
-        setColor(0.35, 0.32, 0.42, 1)
+        Color.set(0.35, 0.32, 0.42, 1)
         for px = 8, w - 8, 16 do
             love.graphics.circle("fill", x + px, y + h/2, 2)
         end
@@ -772,51 +758,51 @@ function Contra:drawEnemy(e, time)
         pal = PALETTES.soldier
 
         -- Shadow
-        setColor(0, 0, 0, 0.3)
+        Color.set(0, 0, 0, 0.3)
         love.graphics.ellipse("fill", e.x + e.width/2, e.y + e.height + 2, e.width/2, 4)
 
         -- Legs (animated)
         local legAnim = math.sin(time * 8) * 3
-        setColor(pal.body[2][1], pal.body[2][2], pal.body[2][3], 1)
+        Color.set(pal.body[2][1], pal.body[2][2], pal.body[2][3], 1)
         love.graphics.rectangle("fill", e.x + 2, e.y + 18 + legAnim, 6, 10)
         love.graphics.rectangle("fill", e.x + 12, e.y + 18 - legAnim, 6, 10)
 
         -- Body
-        setColor(pal.body[1][1], pal.body[1][2], pal.body[1][3], 1)
+        Color.set(pal.body[1][1], pal.body[1][2], pal.body[1][3], 1)
         love.graphics.rectangle("fill", e.x + 2, e.y + 8, 16, 12)
 
         -- Highlight
-        setColor(pal.body[3][1], pal.body[3][2], pal.body[3][3], 1)
+        Color.set(pal.body[3][1], pal.body[3][2], pal.body[3][3], 1)
         love.graphics.rectangle("fill", e.x + 2, e.y + 8, 16, 3)
 
         -- Head
-        setColor(pal.skin[1][1], pal.skin[1][2], pal.skin[1][3], 1)
+        Color.set(pal.skin[1][1], pal.skin[1][2], pal.skin[1][3], 1)
         love.graphics.circle("fill", e.x + 10, e.y + 5, 6)
 
         -- Helmet
-        setColor(0.35, 0.35, 0.38, 1)
+        Color.set(0.35, 0.35, 0.38, 1)
         love.graphics.arc("fill", e.x + 10, e.y + 4, 7, math.pi, 0)
 
         -- Gun
-        setColor(0.28, 0.28, 0.32, 1)
+        Color.set(0.28, 0.28, 0.32, 1)
         local gunX = e.facing == 1 and e.x + e.width or e.x - 10
         love.graphics.rectangle("fill", gunX, e.y + 12, 10, 4)
-        setColor(0.45, 0.45, 0.50, 1)
+        Color.set(0.45, 0.45, 0.50, 1)
         love.graphics.rectangle("fill", gunX + (e.facing == 1 and 0 or 6), e.y + 11, 4, 6)
 
     elseif e.type == "turret" then
         pal = PALETTES.turret
 
         -- Base
-        setColor(pal.metal[2][1], pal.metal[2][2], pal.metal[2][3], 1)
+        Color.set(pal.metal[2][1], pal.metal[2][2], pal.metal[2][3], 1)
         love.graphics.rectangle("fill", e.x, e.y + 10, e.width, 10)
 
         -- Turret body
-        setColor(pal.metal[1][1], pal.metal[1][2], pal.metal[1][3], 1)
+        Color.set(pal.metal[1][1], pal.metal[1][2], pal.metal[1][3], 1)
         love.graphics.arc("fill", e.x + e.width/2, e.y + 12, 12, math.pi, 0)
 
         -- Highlight
-        setColor(pal.metal[3][1], pal.metal[3][2], pal.metal[3][3], 1)
+        Color.set(pal.metal[3][1], pal.metal[3][2], pal.metal[3][3], 1)
         love.graphics.arc("fill", e.x + e.width/2, e.y + 10, 8, math.pi + 0.3, -0.3)
 
         -- Barrel
@@ -824,18 +810,18 @@ function Contra:drawEnemy(e, time)
         love.graphics.push()
         love.graphics.translate(e.x + e.width/2, e.y + 8)
         love.graphics.rotate(clamp(barrelAngle, -0.8, 0.8))
-        setColor(pal.accent[1][1], pal.accent[1][2], pal.accent[1][3], 1)
+        Color.set(pal.accent[1][1], pal.accent[1][2], pal.accent[1][3], 1)
         love.graphics.rectangle("fill", 0, -3, 18, 6)
-        setColor(pal.accent[2][1], pal.accent[2][2], pal.accent[2][3], 1)
+        Color.set(pal.accent[2][1], pal.accent[2][2], pal.accent[2][3], 1)
         love.graphics.rectangle("fill", 0, -3, 18, 2)
         -- Muzzle
-        setColor(0.25, 0.25, 0.28, 1)
+        Color.set(0.25, 0.25, 0.28, 1)
         love.graphics.circle("fill", 18, 0, 4)
         love.graphics.pop()
 
         -- Warning light
         local blink = math.sin(time * 6) > 0 and 1 or 0.4
-        setColor(0.95 * blink, 0.25, 0.25, 1)
+        Color.set(0.95 * blink, 0.25, 0.25, 1)
         love.graphics.circle("fill", e.x + e.width/2, e.y + 4, 3)
 
     elseif e.type == "flyer" then
@@ -843,7 +829,7 @@ function Contra:drawEnemy(e, time)
 
         -- Wings (animated)
         local wingFlap = math.sin(time * 15) * 0.3
-        setColor(pal.wing[1][1], pal.wing[1][2], pal.wing[1][3], 1)
+        Color.set(pal.wing[1][1], pal.wing[1][2], pal.wing[1][3], 1)
         love.graphics.polygon("fill",
             e.x + e.width/2, e.y + 8,
             e.x - 8, e.y + 4 + wingFlap * 10,
@@ -854,22 +840,22 @@ function Contra:drawEnemy(e, time)
             e.x + e.width, e.y + 12)
 
         -- Body
-        setColor(pal.body[1][1], pal.body[1][2], pal.body[1][3], 1)
+        Color.set(pal.body[1][1], pal.body[1][2], pal.body[1][3], 1)
         love.graphics.ellipse("fill", e.x + e.width/2, e.y + e.height/2, e.width/2, e.height/2)
 
         -- Highlight
-        setColor(pal.body[3][1], pal.body[3][2], pal.body[3][3], 1)
+        Color.set(pal.body[3][1], pal.body[3][2], pal.body[3][3], 1)
         love.graphics.ellipse("fill", e.x + e.width/2 - 2, e.y + e.height/2 - 3, 6, 4)
 
         -- Eye
-        setColor(0.95, 0.85, 0.35, 1)
+        Color.set(0.95, 0.85, 0.35, 1)
         love.graphics.circle("fill", e.x + e.width/2, e.y + e.height/2, 4)
-        setColor(0.15, 0.15, 0.18, 1)
+        Color.set(0.15, 0.15, 0.18, 1)
         love.graphics.circle("fill", e.x + e.width/2 + 1, e.y + e.height/2, 2)
 
         -- Engine glow
         local glow = 0.7 + math.sin(time * 10) * 0.3
-        setColor(1, 0.6 * glow, 0.2, 0.8)
+        Color.set(1, 0.6 * glow, 0.2, 0.8)
         love.graphics.circle("fill", e.x + e.width/2, e.y + e.height, 3)
     end
 end
@@ -880,13 +866,13 @@ function Contra:drawBoss(e, time)
     local pulse = math.sin(time * 4) * 0.1 + 0.9
 
     -- Shadow
-    setColor(0, 0, 0, 0.4)
+    Color.set(0, 0, 0, 0.4)
     love.graphics.ellipse("fill", e.x + e.width/2, e.y + e.height + 5, e.width/2, 10)
 
     -- Health bar background
-    setColor(0.15, 0.1, 0.2, 0.9)
+    Color.set(0.15, 0.1, 0.2, 0.9)
     love.graphics.rectangle("fill", e.x - 15, e.y - 30, e.width + 30, 16)
-    setColor(0.3, 0.3, 0.35, 1)
+    Color.set(0.3, 0.3, 0.35, 1)
     love.graphics.rectangle("line", e.x - 15, e.y - 30, e.width + 30, 16)
 
     -- Health bar with gradient effect
@@ -896,36 +882,36 @@ function Contra:drawBoss(e, time)
         local r = lerp(0.95, 0.75, t)
         local g = lerp(0.25, 0.15, t)
         local b = lerp(0.35, 0.45, t)
-        setColor(r, g, b, 1)
+        Color.set(r, g, b, 1)
         love.graphics.rectangle("fill", e.x - 13 + i, e.y - 28, 2, 12)
     end
 
     -- Boss label
-    setColor(1, 0.9, 0.5, 1)
+    Color.set(1, 0.9, 0.5, 1)
     love.graphics.print("OVERLORD", e.x + e.width/2 - 35, e.y - 48)
 
     -- Armor plates (back layer)
-    setColor(pal.armor[1][1], pal.armor[1][2], pal.armor[1][3], 1)
+    Color.set(pal.armor[1][1], pal.armor[1][2], pal.armor[1][3], 1)
     love.graphics.rectangle("fill", e.x - 8, e.y + 20, e.width + 16, e.height - 25)
 
     -- Main body
-    setColor(pal.body[1][1] * pulse, pal.body[1][2] * pulse, pal.body[1][3] * pulse, 1)
+    Color.set(pal.body[1][1] * pulse, pal.body[1][2] * pulse, pal.body[1][3] * pulse, 1)
     love.graphics.rectangle("fill", e.x, e.y + 10, e.width, e.height - 15)
 
     -- Body segments
-    setColor(pal.body[2][1], pal.body[2][2], pal.body[2][3], 1)
+    Color.set(pal.body[2][1], pal.body[2][2], pal.body[2][3], 1)
     for i = 0, 3 do
         love.graphics.rectangle("fill", e.x + 5, e.y + 25 + i * 15, e.width - 10, 3)
     end
 
     -- Highlight strips
-    setColor(pal.body[3][1], pal.body[3][2], pal.body[3][3], 1)
+    Color.set(pal.body[3][1], pal.body[3][2], pal.body[3][3], 1)
     love.graphics.rectangle("fill", e.x + 3, e.y + 10, 5, e.height - 20)
 
     -- Head/dome
-    setColor(pal.armor[2][1], pal.armor[2][2], pal.armor[2][3], 1)
+    Color.set(pal.armor[2][1], pal.armor[2][2], pal.armor[2][3], 1)
     love.graphics.arc("fill", e.x + e.width/2, e.y + 15, 25, math.pi, 0)
-    setColor(pal.armor[1][1], pal.armor[1][2], pal.armor[1][3], 1)
+    Color.set(pal.armor[1][1], pal.armor[1][2], pal.armor[1][3], 1)
     love.graphics.arc("fill", e.x + e.width/2, e.y + 12, 18, math.pi, 0)
 
     -- Eyes (animated)
@@ -933,36 +919,36 @@ function Contra:drawBoss(e, time)
     local eyeOffset = math.sin(time * 2) * 3
 
     -- Left eye
-    setColor(0.15, 0.08, 0.12, 1)
+    Color.set(0.15, 0.08, 0.12, 1)
     love.graphics.circle("fill", e.x + 18, e.y + 30, 12)
-    setColor(pal.eye[1][1] * eyeGlow, pal.eye[1][2] * eyeGlow, pal.eye[1][3] * eyeGlow, 1)
+    Color.set(pal.eye[1][1] * eyeGlow, pal.eye[1][2] * eyeGlow, pal.eye[1][3] * eyeGlow, 1)
     love.graphics.circle("fill", e.x + 18, e.y + 30, 10)
-    setColor(0.12, 0.05, 0.08, 1)
+    Color.set(0.12, 0.05, 0.08, 1)
     love.graphics.circle("fill", e.x + 18 + eyeOffset, e.y + 30, 5)
-    setColor(1, 0.9, 0.9, 0.9)
+    Color.set(1, 0.9, 0.9, 0.9)
     love.graphics.circle("fill", e.x + 15, e.y + 27, 2)
 
     -- Right eye
-    setColor(0.15, 0.08, 0.12, 1)
+    Color.set(0.15, 0.08, 0.12, 1)
     love.graphics.circle("fill", e.x + 46, e.y + 30, 12)
-    setColor(pal.eye[1][1] * eyeGlow, pal.eye[1][2] * eyeGlow, pal.eye[1][3] * eyeGlow, 1)
+    Color.set(pal.eye[1][1] * eyeGlow, pal.eye[1][2] * eyeGlow, pal.eye[1][3] * eyeGlow, 1)
     love.graphics.circle("fill", e.x + 46, e.y + 30, 10)
-    setColor(0.12, 0.05, 0.08, 1)
+    Color.set(0.12, 0.05, 0.08, 1)
     love.graphics.circle("fill", e.x + 46 + eyeOffset, e.y + 30, 5)
-    setColor(1, 0.9, 0.9, 0.9)
+    Color.set(1, 0.9, 0.9, 0.9)
     love.graphics.circle("fill", e.x + 43, e.y + 27, 2)
 
     -- Cannons on sides
     for side = -1, 1, 2 do
         local cx = e.x + (side == -1 and -12 or e.width + 4)
-        setColor(0.38, 0.35, 0.42, 1)
+        Color.set(0.38, 0.35, 0.42, 1)
         love.graphics.rectangle("fill", cx, e.y + 45, 10, 25)
-        setColor(0.28, 0.25, 0.32, 1)
+        Color.set(0.28, 0.25, 0.32, 1)
         love.graphics.circle("fill", cx + 5, e.y + 70, 6)
 
         -- Cannon glow when shooting
         if e.shootTimer < 0.2 then
-            setColor(1, 0.5, 0.6, 0.6)
+            Color.set(1, 0.5, 0.6, 0.6)
             love.graphics.circle("fill", cx + 5, e.y + 72, 8)
         end
     end
@@ -974,7 +960,7 @@ function Contra:drawBullet(b, time)
         local angle = math.atan2(b.vy, b.vx)
 
         -- Trail
-        setColor(1, 0.9, 0.4, 0.3)
+        Color.set(1, 0.9, 0.4, 0.3)
         love.graphics.push()
         love.graphics.translate(b.x, b.y)
         love.graphics.rotate(angle)
@@ -982,24 +968,24 @@ function Contra:drawBullet(b, time)
         love.graphics.pop()
 
         -- Core
-        setColor(1, 1, 0.6, 1)
+        Color.set(1, 1, 0.6, 1)
         love.graphics.ellipse("fill", b.x, b.y, b.width/2, b.height/2)
 
         -- Hot center
-        setColor(1, 1, 0.95, 1)
+        Color.set(1, 1, 0.95, 1)
         love.graphics.circle("fill", b.x, b.y, 2)
     else
         -- Enemy bullet with menacing glow
         -- Outer glow
-        setColor(b.color[1], b.color[2], b.color[3], 0.4)
+        Color.set(b.color[1], b.color[2], b.color[3], 0.4)
         love.graphics.circle("fill", b.x, b.y, b.width)
 
         -- Core
-        setColor(b.color[1], b.color[2], b.color[3], 1)
+        Color.set(b.color[1], b.color[2], b.color[3], 1)
         love.graphics.circle("fill", b.x, b.y, b.width/2)
 
         -- Inner bright spot
-        setColor(1, 0.8, 0.8, 0.9)
+        Color.set(1, 0.8, 0.8, 0.9)
         love.graphics.circle("fill", b.x - 1, b.y - 1, b.width/4)
     end
 end
@@ -1015,55 +1001,55 @@ function Contra:drawPlayer(time)
     local runAnim = p.vx ~= 0 and math.sin(time * 12) or 0
 
     -- Shadow
-    setColor(0, 0, 0, 0.3)
+    Color.set(0, 0, 0, 0.3)
     love.graphics.ellipse("fill", p.x + p.width/2, p.y + p.height + 2, 10, 4)
 
     -- Legs with animation
-    setColor(pal.body[2][1], pal.body[2][2], pal.body[2][3], 1)
+    Color.set(pal.body[2][1], pal.body[2][2], pal.body[2][3], 1)
     local legOffset = runAnim * 4
     love.graphics.rectangle("fill", p.x + 4, p.y + 22 + legOffset, 6, 10)
     love.graphics.rectangle("fill", p.x + 14, p.y + 22 - legOffset, 6, 10)
 
     -- Boots
-    setColor(0.25, 0.22, 0.28, 1)
+    Color.set(0.25, 0.22, 0.28, 1)
     love.graphics.rectangle("fill", p.x + 3, p.y + 30 + legOffset, 8, 4)
     love.graphics.rectangle("fill", p.x + 13, p.y + 30 - legOffset, 8, 4)
 
     -- Body armor
-    setColor(pal.body[1][1], pal.body[1][2], pal.body[1][3], 1)
+    Color.set(pal.body[1][1], pal.body[1][2], pal.body[1][3], 1)
     love.graphics.rectangle("fill", p.x + 2, p.y + 10, 20, 14)
 
     -- Armor highlight
-    setColor(pal.body[3][1], pal.body[3][2], pal.body[3][3], 1)
+    Color.set(pal.body[3][1], pal.body[3][2], pal.body[3][3], 1)
     love.graphics.rectangle("fill", p.x + 2, p.y + 10, 20, 3)
     love.graphics.rectangle("fill", p.x + 2, p.y + 10, 3, 14)
 
     -- Belt
-    setColor(0.55, 0.45, 0.32, 1)
+    Color.set(0.55, 0.45, 0.32, 1)
     love.graphics.rectangle("fill", p.x + 2, p.y + 20, 20, 4)
-    setColor(0.75, 0.65, 0.35, 1)
+    Color.set(0.75, 0.65, 0.35, 1)
     love.graphics.rectangle("fill", p.x + 10, p.y + 20, 6, 4)
 
     -- Head
-    setColor(pal.skin[1][1], pal.skin[1][2], pal.skin[1][3], 1)
+    Color.set(pal.skin[1][1], pal.skin[1][2], pal.skin[1][3], 1)
     love.graphics.circle("fill", p.x + 12, p.y + 6, 7)
 
     -- Skin shadow
-    setColor(pal.skin[2][1], pal.skin[2][2], pal.skin[2][3], 1)
+    Color.set(pal.skin[2][1], pal.skin[2][2], pal.skin[2][3], 1)
     love.graphics.arc("fill", p.x + 12, p.y + 6, 7, 0, math.pi)
 
     -- Hair
-    setColor(pal.hair[1][1], pal.hair[1][2], pal.hair[1][3], 1)
+    Color.set(pal.hair[1][1], pal.hair[1][2], pal.hair[1][3], 1)
     love.graphics.arc("fill", p.x + 12, p.y + 4, 8, math.pi, 0)
     -- Hair spikes
     love.graphics.polygon("fill", p.x + 6, p.y + 2, p.x + 8, p.y - 3, p.x + 10, p.y + 2)
     love.graphics.polygon("fill", p.x + 12, p.y + 1, p.x + 14, p.y - 4, p.x + 16, p.y + 1)
 
     -- Eyes
-    setColor(0.12, 0.12, 0.15, 1)
+    Color.set(0.12, 0.12, 0.15, 1)
     love.graphics.circle("fill", p.x + 9, p.y + 5, 2)
     love.graphics.circle("fill", p.x + 15, p.y + 5, 2)
-    setColor(1, 1, 1, 0.9)
+    Color.set(1, 1, 1, 0.9)
     love.graphics.circle("fill", p.x + 9, p.y + 4, 1)
     love.graphics.circle("fill", p.x + 15, p.y + 4, 1)
 
@@ -1081,20 +1067,20 @@ function Contra:drawPlayer(time)
     love.graphics.rotate(armAngle * p.facing)
 
     -- Arm
-    setColor(pal.skin[1][1], pal.skin[1][2], pal.skin[1][3], 1)
+    Color.set(pal.skin[1][1], pal.skin[1][2], pal.skin[1][3], 1)
     love.graphics.rectangle("fill", 0, -2, 10 * p.facing, 5)
 
     -- Gun
-    setColor(0.32, 0.32, 0.38, 1)
+    Color.set(0.32, 0.32, 0.38, 1)
     love.graphics.rectangle("fill", 8 * p.facing, -4, 12 * p.facing, 8)
-    setColor(0.45, 0.45, 0.52, 1)
+    Color.set(0.45, 0.45, 0.52, 1)
     love.graphics.rectangle("fill", 8 * p.facing, -4, 12 * p.facing, 2)
 
     -- Muzzle flash when shooting
     if p.shootTimer > p.shootDelay - 0.05 then
-        setColor(1, 0.9, 0.5, 0.8)
+        Color.set(1, 0.9, 0.5, 0.8)
         love.graphics.circle("fill", 22 * p.facing, 0, 6)
-        setColor(1, 1, 0.8, 1)
+        Color.set(1, 1, 0.8, 1)
         love.graphics.circle("fill", 22 * p.facing, 0, 3)
     end
 
@@ -1111,7 +1097,7 @@ function Contra:drawBackground()
         local r = lerp(0.08, 0.18, t)
         local g = lerp(0.02, 0.12, t)
         local b = lerp(0.18, 0.28, t)
-        setColor(r, g, b, 1)
+        Color.set(r, g, b, 1)
         love.graphics.rectangle("fill", 0, y, screenW, 2)
     end
 
@@ -1121,18 +1107,18 @@ function Contra:drawBackground()
         local sx = ((i * 137 + self.camera.x * 0.05) % screenW)
         local sy = (i * 53) % 250
         local size = (i % 3) + 1
-        setColor(0.8, 0.7, 1, 0.4 * twinkle)
+        Color.set(0.8, 0.7, 1, 0.4 * twinkle)
         love.graphics.circle("fill", sx, sy, size)
     end
 
     -- Nebula clouds (very back layer)
     local nebulaParallax = self.camera.x * 0.1
-    setColor(0.35, 0.15, 0.45, 0.15)
+    Color.set(0.35, 0.15, 0.45, 0.15)
     for i = 0, 3 do
         local nx = i * 400 - nebulaParallax % 400
         love.graphics.ellipse("fill", nx + 150, 120, 180, 80)
     end
-    setColor(0.45, 0.25, 0.35, 0.12)
+    Color.set(0.45, 0.25, 0.35, 0.12)
     for i = 0, 3 do
         local nx = i * 350 + 100 - nebulaParallax % 350
         love.graphics.ellipse("fill", nx + 120, 180, 140, 60)
@@ -1140,7 +1126,7 @@ function Contra:drawBackground()
 
     -- Far mountains
     local parallax1 = self.camera.x * 0.2
-    setColor(0.15, 0.12, 0.22, 1)
+    Color.set(0.15, 0.12, 0.22, 1)
     for i = 0, 6 do
         local mx = i * 280 - parallax1 % 280
         local mh = 150 + (i % 3) * 50
@@ -1154,7 +1140,7 @@ function Contra:drawBackground()
 
     -- Near mountains with detail
     local parallax2 = self.camera.x * 0.35
-    setColor(0.22, 0.18, 0.30, 1)
+    Color.set(0.22, 0.18, 0.30, 1)
     for i = 0, 5 do
         local mx = i * 350 - parallax2 % 350
         love.graphics.polygon("fill",
@@ -1167,7 +1153,7 @@ function Contra:drawBackground()
     end
 
     -- Mountain highlights
-    setColor(0.32, 0.28, 0.42, 0.5)
+    Color.set(0.32, 0.28, 0.42, 0.5)
     for i = 0, 5 do
         local mx = i * 350 - parallax2 % 350
         love.graphics.polygon("fill",
@@ -1182,7 +1168,7 @@ function Contra:drawBackground()
 
     -- Alien structures in distance
     local structParallax = self.camera.x * 0.25
-    setColor(0.18, 0.15, 0.25, 0.8)
+    Color.set(0.18, 0.15, 0.25, 0.8)
     for i = 0, 3 do
         local sx = i * 600 + 200 - structParallax % 600
         -- Tower
@@ -1190,15 +1176,15 @@ function Contra:drawBackground()
         love.graphics.rectangle("fill", sx - 15, 340, 55, 15)
         -- Window lights
         local windowGlow = math.sin(time * 2 + i) * 0.3 + 0.7
-        setColor(0.85 * windowGlow, 0.45 * windowGlow, 0.55 * windowGlow, 0.9)
+        Color.set(0.85 * windowGlow, 0.45 * windowGlow, 0.55 * windowGlow, 0.9)
         for wy = 0, 4 do
             love.graphics.rectangle("fill", sx + 8, 360 + wy * 22, 10, 8)
         end
-        setColor(0.18, 0.15, 0.25, 0.8)
+        Color.set(0.18, 0.15, 0.25, 0.8)
     end
 
     -- Floating particles/embers
-    setColor(0.95, 0.65, 0.45, 0.4)
+    Color.set(0.95, 0.65, 0.45, 0.4)
     for i = 1, 15 do
         local px = ((i * 97 + time * 20 + self.camera.x * 0.3) % screenW)
         local py = (i * 41 + math.sin(time + i) * 30) % 400 + 100
@@ -1210,22 +1196,22 @@ function Contra:drawHUD()
     local screenW, screenH = love.graphics.getDimensions()
 
     -- Health panel with bevel effect
-    setColor(0.12, 0.10, 0.18, 0.9)
+    Color.set(0.12, 0.10, 0.18, 0.9)
     love.graphics.rectangle("fill", 8, 8, 160, 38)
-    setColor(0.35, 0.30, 0.45, 1)
+    Color.set(0.35, 0.30, 0.45, 1)
     love.graphics.rectangle("line", 8, 8, 160, 38)
 
     -- Inner bevel
-    setColor(0.22, 0.18, 0.30, 1)
+    Color.set(0.22, 0.18, 0.30, 1)
     love.graphics.rectangle("fill", 10, 10, 156, 2)
     love.graphics.rectangle("fill", 10, 10, 2, 34)
 
-    setColor(0.08, 0.06, 0.12, 1)
+    Color.set(0.08, 0.06, 0.12, 1)
     love.graphics.rectangle("fill", 10, 42, 156, 2)
     love.graphics.rectangle("fill", 164, 10, 2, 34)
 
     -- Life label
-    setColor(0.85, 0.80, 0.95, 1)
+    Color.set(0.85, 0.80, 0.95, 1)
     love.graphics.print("LIFE", 18, 14)
 
     -- Health hearts/bars
@@ -1233,51 +1219,51 @@ function Contra:drawHUD()
         local hx = 58 + (i-1) * 34
         if i <= self.player.health then
             -- Full heart
-            setColor(0.85, 0.25, 0.30, 1)
+            Color.set(0.85, 0.25, 0.30, 1)
             love.graphics.rectangle("fill", hx, 14, 28, 24)
-            setColor(0.95, 0.35, 0.40, 1)
+            Color.set(0.95, 0.35, 0.40, 1)
             love.graphics.rectangle("fill", hx, 14, 28, 6)
             -- Heart icon
-            setColor(1, 0.5, 0.55, 1)
+            Color.set(1, 0.5, 0.55, 1)
             love.graphics.circle("fill", hx + 9, 22, 5)
             love.graphics.circle("fill", hx + 19, 22, 5)
             love.graphics.polygon("fill", hx + 4, 24, hx + 14, 35, hx + 24, 24)
         else
             -- Empty heart
-            setColor(0.25, 0.22, 0.30, 1)
+            Color.set(0.25, 0.22, 0.30, 1)
             love.graphics.rectangle("fill", hx, 14, 28, 24)
-            setColor(0.35, 0.30, 0.40, 0.5)
+            Color.set(0.35, 0.30, 0.40, 0.5)
             love.graphics.rectangle("line", hx + 2, 16, 24, 20)
         end
     end
 
     -- Score panel
-    setColor(0.12, 0.10, 0.18, 0.9)
+    Color.set(0.12, 0.10, 0.18, 0.9)
     love.graphics.rectangle("fill", screenW - 175, 8, 167, 38)
-    setColor(0.35, 0.30, 0.45, 1)
+    Color.set(0.35, 0.30, 0.45, 1)
     love.graphics.rectangle("line", screenW - 175, 8, 167, 38)
 
     -- Score text with glow
-    setColor(1, 0.9, 0.4, 0.3)
+    Color.set(1, 0.9, 0.4, 0.3)
     love.graphics.printf("SCORE", screenW - 168, 11, 155, "left")
-    setColor(1, 0.95, 0.5, 1)
+    Color.set(1, 0.95, 0.5, 1)
     love.graphics.printf("SCORE", screenW - 170, 12, 155, "left")
 
     -- Score value
     local scoreStr = string.format("%08d", self.score)
-    setColor(1, 1, 0.85, 1)
+    Color.set(1, 1, 0.85, 1)
     love.graphics.printf(scoreStr, screenW - 170, 26, 155, "right")
 
     -- Controls hint with subtle styling
-    setColor(0.12, 0.10, 0.18, 0.7)
+    Color.set(0.12, 0.10, 0.18, 0.7)
     love.graphics.rectangle("fill", 8, screenH - 28, 500, 22)
-    setColor(0.75, 0.70, 0.85, 0.9)
+    Color.set(0.75, 0.70, 0.85, 0.9)
     love.graphics.print("WASD: Move/Aim  |  SPACE: Jump  |  X/J: Shoot  |  ESC: Exit", 15, screenH - 24)
 end
 
 function Contra:keypressed(key)
     if key == "escape" then
-        Gamestate:pop()
+        Gamestate:push(require("states.pause"))
     end
 
     -- Restart on game over

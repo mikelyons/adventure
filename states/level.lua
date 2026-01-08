@@ -1,21 +1,6 @@
 local Level = {}
 local Sprites = require "sprites"
-
--- Compatibility color setter for LÖVE 0.10.x (0-255) and 11.x+ (0-1)
-local function setColor(r, g, b, a)
-    a = a or 1
-    local getVersion = love.getVersion
-    if getVersion then
-        local major = getVersion()
-        if type(major) == "number" then
-            if major >= 11 then
-                love.graphics.setColor(r, g, b, a)
-                return
-            end
-        end
-    end
-    love.graphics.setColor(r * 255, g * 255, b * 255, a * 255)
-end
+local Color = require("color")
 
 local function clamp(value, minValue, maxValue)
     if value < minValue then return minValue end
@@ -552,7 +537,7 @@ function Level:draw()
     local startRow = math.max(1, math.floor(self.camera.y / ts) + 1)
     local endRow = math.min(self.level.rows, math.floor((self.camera.y + screenH) / ts) + 2)
 
-    setColor(1, 1, 1, 1)
+    Color.set(1, 1, 1, 1)
     for row = startRow, endRow do
         for col = startCol, endCol do
             local tile = self.tiles[row] and self.tiles[row][col]
@@ -569,23 +554,23 @@ function Level:draw()
     for _, npc in ipairs(self.npcs) do
         -- Glow effect for mystical NPCs
         local pulse = math.sin(love.timer.getTime() * 2) * 0.2 + 0.8
-        setColor(npc.color[1] * pulse, npc.color[2] * pulse, npc.color[3] * pulse, 0.3)
+        Color.set(npc.color[1] * pulse, npc.color[2] * pulse, npc.color[3] * pulse, 0.3)
         love.graphics.circle("fill", npc.x, npc.y, npc.size + 4)
 
-        setColor(npc.color[1], npc.color[2], npc.color[3], 1)
+        Color.set(npc.color[1], npc.color[2], npc.color[3], 1)
         love.graphics.circle("fill", npc.x, npc.y, npc.size)
-        setColor(0.1, 0.1, 0.2, 1)
+        Color.set(0.1, 0.1, 0.2, 1)
         love.graphics.setLineWidth(2)
         love.graphics.circle("line", npc.x, npc.y, npc.size)
 
         -- NPC name
-        setColor(1, 1, 1, 0.9)
+        Color.set(1, 1, 1, 0.9)
         local nameWidth = love.graphics.getFont():getWidth(npc.name)
         love.graphics.print(npc.name, npc.x - nameWidth / 2, npc.y - npc.size - 20)
     end
 
     -- Draw player
-    setColor(1, 1, 1, 1)
+    Color.set(1, 1, 1, 1)
     local playerSprite = Sprites.images.player
     if playerSprite then
         local playerScale = self.player.size / 6
@@ -594,7 +579,7 @@ function Level:draw()
             0, playerScale, playerScale, 8, 8)
     else
         love.graphics.circle("fill", self.player.x, self.player.y, self.player.size)
-        setColor(0.1, 0.1, 0.2)
+        Color.set(0.1, 0.1, 0.2)
         love.graphics.setLineWidth(2)
         love.graphics.circle("line", self.player.x, self.player.y, self.player.size)
     end
@@ -602,13 +587,13 @@ function Level:draw()
     love.graphics.pop()
 
     -- HUD
-    setColor(1, 1, 1, 1)
+    Color.set(1, 1, 1, 1)
     love.graphics.print(self.levelName, 10, 10)
     love.graphics.print("WASD to move, SPACE to talk, ESC to exit", 10, 30)
 
     -- Interaction prompt
     if self.interactionPrompt and not self.dialogue.active then
-        setColor(1, 1, 0.8, 1)
+        Color.set(1, 1, 0.8, 1)
         love.graphics.print(self.interactionPrompt, 10, 50)
     end
 
@@ -632,17 +617,17 @@ function Level:drawWelcomeMessage()
         alpha = (self.welcomeDuration - self.welcomeTimer) / 0.5
     end
 
-    setColor(0, 0, 0, 0.6 * alpha)
+    Color.set(0, 0, 0, 0.6 * alpha)
     love.graphics.rectangle("fill", screenW/2 - 200, 80, 400, 60)
 
-    setColor(1, 1, 0.9, alpha)
+    Color.set(1, 1, 0.9, alpha)
     love.graphics.printf("Entering: " .. self.levelName, screenW/2 - 190, 100, 380, "center")
 end
 
 function Level:drawDialogueOverlay()
     local screenW, screenH = love.graphics.getDimensions()
 
-    setColor(0, 0, 0, 0.7)
+    Color.set(0, 0, 0, 0.7)
     love.graphics.rectangle("fill", 0, 0, screenW, screenH)
 
     local boxWidth = 700
@@ -650,22 +635,22 @@ function Level:drawDialogueOverlay()
     local boxX = (screenW - boxWidth) / 2
     local boxY = screenH - boxHeight - 50
 
-    setColor(0.1, 0.1, 0.2, 0.95)
+    Color.set(0.1, 0.1, 0.2, 0.95)
     love.graphics.rectangle("fill", boxX, boxY, boxWidth, boxHeight)
-    setColor(0.8, 0.8, 0.8, 1)
+    Color.set(0.8, 0.8, 0.8, 1)
     love.graphics.setLineWidth(3)
     love.graphics.rectangle("line", boxX, boxY, boxWidth, boxHeight)
 
     if self.dialogue.currentNPC then
-        setColor(1, 1, 0.8, 1)
+        Color.set(1, 1, 0.8, 1)
         love.graphics.print(self.dialogue.currentNPC.name, boxX + 20, boxY + 15)
     end
 
-    setColor(1, 1, 1, 1)
+    Color.set(1, 1, 1, 1)
     love.graphics.printf(self.dialogue.currentText, boxX + 20, boxY + 45, boxWidth - 40, "left")
 
     if #self.dialogue.currentText >= #self.dialogue.fullText then
-        setColor(0.8, 0.8, 0.2, 1)
+        Color.set(0.8, 0.8, 0.2, 1)
         love.graphics.print("Press SPACE to continue", boxX + 20, boxY + boxHeight - 30)
     end
 end
@@ -683,7 +668,7 @@ function Level:keypressed(key)
     end
 
     if key == "escape" then
-        Gamestate:pop()
+        Gamestate:push(require("states.pause"))
     elseif key == "space" then
         if self.nearbyNPC then
             self:startDialogue(self.nearbyNPC)

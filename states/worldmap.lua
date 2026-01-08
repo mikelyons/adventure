@@ -1,22 +1,8 @@
 local WorldMap = {}
 local Sprites = require "sprites"
-
--- Compatibility color setter for LÖVE 0.10.x (0-255) and 11.x+ (0-1)
-local function setColor(r, g, b, a)
-    a = a or 1
-    local getVersion = love.getVersion
-    if getVersion then
-        local major = getVersion()
-        if type(major) == "number" then
-            if major >= 11 then
-                love.graphics.setColor(r, g, b, a)
-                return
-            end
-        end
-    end
-    -- Assume 0.10 style
-    love.graphics.setColor(r * 255, g * 255, b * 255, a * 255)
-end
+local Color = require("color")
+local Inventory = require("inventory")
+local Paperdoll = require("paperdoll")
 
 function WorldMap:load()
     -- Player state
@@ -26,6 +12,28 @@ function WorldMap:load()
         speed = 220,
         size = 14,
     }
+
+    -- Player inventory (Diablo 2-style grid)
+    self.inventory = Inventory:new()
+
+    -- Player character paperdoll
+    self.playerCharacter = Paperdoll:newCharacter({
+        skinTone = "medium",
+        hairStyle = "short",
+        hairColor = "brown",
+        shirtStyle = "tshirt",
+        shirtColor = "blue",
+        pantsStyle = "pants",
+        pantsColor = "brown",
+        shoesStyle = "sneakers",
+        shoesColor = "black"
+    })
+
+    -- Give player some starting items
+    self.inventory:addItem("rusty_sword", 1)
+    self.inventory:addItem("cloth_shirt", 1)
+    self.inventory:addItem("leather_boots", 1)
+    self.inventory:addItem("health_potion", 3)
 
     -- World and tiles
     self.world = {
@@ -374,7 +382,7 @@ function WorldMap:draw()
     local startRow = math.max(1, math.floor(self.camera.y / ts) + 1)
     local endRow = math.min(self.world.rows, math.floor((self.camera.y + screenH) / ts) + 1)
 
-    setColor(1, 1, 1, 1)
+    Color.set(1, 1, 1, 1)
     for row = startRow, endRow do
         for col = startCol, endCol do
             local tile = self.tiles[row][col]
@@ -398,7 +406,7 @@ function WorldMap:draw()
             local pulse = math.sin(love.timer.getTime() * 3) * 0.15 + 0.85
             local markerScale = (poi.radius / 8) * pulse
 
-            setColor(1, 1, 1, 1)
+            Color.set(1, 1, 1, 1)
             if markerSprite then
                 love.graphics.draw(markerSprite,
                     poi.x, poi.y,
@@ -407,20 +415,20 @@ function WorldMap:draw()
                     8, 8)  -- Center origin
             else
                 -- Fallback to circle
-                setColor(poi.color[1] * pulse, poi.color[2] * pulse, poi.color[3] * pulse, 0.8)
+                Color.set(poi.color[1] * pulse, poi.color[2] * pulse, poi.color[3] * pulse, 0.8)
                 love.graphics.circle("fill", poi.x, poi.y, poi.radius)
             end
 
             -- Draw name if discovered
             if poi.discovered then
-                setColor(1, 1, 1, 0.9)
+                Color.set(1, 1, 1, 0.9)
                 love.graphics.print(poi.name, poi.x - love.graphics.getFont():getWidth(poi.name) / 2, poi.y - poi.radius - 25)
             end
         end
     end
 
     -- Player sprite
-    setColor(1, 1, 1, 1)
+    Color.set(1, 1, 1, 1)
     local playerSprite = Sprites.images.player
     if playerSprite then
         local playerScale = self.player.size / 6
@@ -432,7 +440,7 @@ function WorldMap:draw()
     else
         -- Fallback to circle
         love.graphics.circle("fill", self.player.x, self.player.y, self.player.size)
-        setColor(0.1, 0.1, 0.2)
+        Color.set(0.1, 0.1, 0.2)
         love.graphics.setLineWidth(2)
         love.graphics.circle("line", self.player.x, self.player.y, self.player.size)
     end
@@ -457,38 +465,38 @@ function WorldMap:drawHUD()
     local screenW = love.graphics.getDimensions()
 
     -- HUD background panel
-    setColor(0.05, 0.08, 0.12, 0.9)
+    Color.set(0.05, 0.08, 0.12, 0.9)
     love.graphics.rectangle("fill", 5, 5, 450, 70, 6, 6)
 
     -- Panel border
-    setColor(0.30, 0.45, 0.55)
+    Color.set(0.30, 0.45, 0.55)
     love.graphics.setLineWidth(2)
     love.graphics.rectangle("line", 5, 5, 450, 70, 6, 6)
 
     -- Inner highlight
-    setColor(0.40, 0.55, 0.65, 0.3)
+    Color.set(0.40, 0.55, 0.65, 0.3)
     love.graphics.rectangle("line", 7, 7, 446, 66, 5, 5)
 
     -- World map title with globe icon hint
-    setColor(0.55, 0.75, 0.90)
+    Color.set(0.55, 0.75, 0.90)
     love.graphics.print("WORLD MAP", 15, 12)
 
     -- Separator
-    setColor(0.30, 0.45, 0.55)
+    Color.set(0.30, 0.45, 0.55)
     love.graphics.rectangle("fill", 105, 10, 2, 20)
 
     -- Player name and level
-    setColor(0.65, 0.95, 0.75)
+    Color.set(0.65, 0.95, 0.75)
     love.graphics.print(self.hud.name, 120, 12)
-    setColor(0.95, 0.85, 0.55)
+    Color.set(0.95, 0.85, 0.55)
     love.graphics.print("Lv." .. self.hud.level, 240, 12)
 
     -- Separator
-    setColor(0.30, 0.45, 0.55)
+    Color.set(0.30, 0.45, 0.55)
     love.graphics.rectangle("fill", 290, 10, 2, 20)
 
     -- Coordinates
-    setColor(0.6, 0.7, 0.8)
+    Color.set(0.6, 0.7, 0.8)
     love.graphics.print(string.format("(%.0f, %.0f)", self.player.x, self.player.y), 305, 12)
 
     -- POI progress bar
@@ -500,31 +508,31 @@ function WorldMap:drawHUD()
     end
 
     -- POI label
-    setColor(0.55, 0.75, 0.90)
+    Color.set(0.55, 0.75, 0.90)
     love.graphics.print("Discovered:", 15, 38)
 
     -- Progress bar background
     local barX, barY, barW, barH = 100, 40, 120, 12
-    setColor(0.15, 0.20, 0.25)
+    Color.set(0.15, 0.20, 0.25)
     love.graphics.rectangle("fill", barX, barY, barW, barH, 3, 3)
 
     -- Progress bar fill
     local progress = #self.pointsOfInterest > 0 and (discoveredCount / #self.pointsOfInterest) or 0
     local fillColor = progress >= 1 and {0.55, 0.90, 0.55} or {0.45, 0.70, 0.90}
-    setColor(fillColor[1], fillColor[2], fillColor[3])
+    Color.set(fillColor[1], fillColor[2], fillColor[3])
     love.graphics.rectangle("fill", barX + 2, barY + 2, (barW - 4) * progress, barH - 4, 2, 2)
 
     -- Progress bar highlight
-    setColor(fillColor[1] + 0.2, fillColor[2] + 0.2, fillColor[3] + 0.2, 0.5)
+    Color.set(fillColor[1] + 0.2, fillColor[2] + 0.2, fillColor[3] + 0.2, 0.5)
     love.graphics.rectangle("fill", barX + 2, barY + 2, (barW - 4) * progress, (barH - 4) / 2, 2, 2)
 
     -- POI count
-    setColor(1, 1, 1)
+    Color.set(1, 1, 1)
     love.graphics.print(string.format("%d/%d", discoveredCount, #self.pointsOfInterest), 230, 38)
 
     -- Controls hint
-    setColor(0.45, 0.55, 0.65)
-    love.graphics.print("WASD: Move  |  SPACE: Enter  |  ESC: Save & Exit", 15, 55)
+    Color.set(0.45, 0.55, 0.65)
+    love.graphics.print("WASD: Move  |  SPACE: Enter  |  I: Inventory  |  ESC: Menu", 15, 55)
 end
 
 function WorldMap:drawInteractionPrompt()
@@ -542,16 +550,16 @@ function WorldMap:drawInteractionPrompt()
     local pulse = math.sin(love.timer.getTime() * 4) * 0.15 + 0.85
 
     -- Background
-    setColor(0.08, 0.12, 0.18, 0.9 * pulse)
+    Color.set(0.08, 0.12, 0.18, 0.9 * pulse)
     love.graphics.rectangle("fill", boxX, boxY, boxW, boxH, 8, 8)
 
     -- Border with glow
-    setColor(0.55, 0.85, 0.65, pulse)
+    Color.set(0.55, 0.85, 0.65, pulse)
     love.graphics.setLineWidth(2)
     love.graphics.rectangle("line", boxX, boxY, boxW, boxH, 8, 8)
 
     -- Text
-    setColor(0.85, 1, 0.90, pulse)
+    Color.set(0.85, 1, 0.90, pulse)
     love.graphics.print(prompt, boxX + 15, boxY + 8)
 end
 
@@ -572,7 +580,7 @@ function WorldMap:drawMessageOverlay()
     end
 
     -- Semi-transparent background with vignette
-    setColor(0, 0, 0, 0.6 * alpha)
+    Color.set(0, 0, 0, 0.6 * alpha)
     love.graphics.rectangle("fill", 0, 0, screenW, screenH)
 
     -- Message box dimensions
@@ -582,30 +590,30 @@ function WorldMap:drawMessageOverlay()
     local boxY = (screenH - boxHeight) / 2
 
     -- Outer glow/shadow
-    setColor(0, 0, 0, 0.5 * alpha)
+    Color.set(0, 0, 0, 0.5 * alpha)
     love.graphics.rectangle("fill", boxX - 4, boxY - 4, boxWidth + 8, boxHeight + 8, 12, 12)
 
     -- Main box background
-    setColor(0.06, 0.10, 0.16, 0.95 * alpha)
+    Color.set(0.06, 0.10, 0.16, 0.95 * alpha)
     love.graphics.rectangle("fill", boxX, boxY, boxWidth, boxHeight, 8, 8)
 
     -- Inner panel (slightly lighter)
-    setColor(0.10, 0.14, 0.20, 0.9 * alpha)
+    Color.set(0.10, 0.14, 0.20, 0.9 * alpha)
     love.graphics.rectangle("fill", boxX + 4, boxY + 4, boxWidth - 8, boxHeight - 8, 6, 6)
 
     -- Decorative border
     love.graphics.setLineWidth(3)
-    setColor(0.45, 0.60, 0.75, alpha)
+    Color.set(0.45, 0.60, 0.75, alpha)
     love.graphics.rectangle("line", boxX, boxY, boxWidth, boxHeight, 8, 8)
 
     -- Inner highlight border
     love.graphics.setLineWidth(1)
-    setColor(0.55, 0.70, 0.85, 0.4 * alpha)
+    Color.set(0.55, 0.70, 0.85, 0.4 * alpha)
     love.graphics.rectangle("line", boxX + 3, boxY + 3, boxWidth - 6, boxHeight - 6, 6, 6)
 
     -- Corner decorations
     local cornerSize = 12
-    setColor(0.55, 0.70, 0.85, alpha)
+    Color.set(0.55, 0.70, 0.85, alpha)
     -- Top-left
     love.graphics.rectangle("fill", boxX + 8, boxY + 8, cornerSize, 2)
     love.graphics.rectangle("fill", boxX + 8, boxY + 8, 2, cornerSize)
@@ -623,7 +631,7 @@ function WorldMap:drawMessageOverlay()
     local iconX = boxX + boxWidth / 2
     local iconY = boxY + 35
     local starPulse = math.sin(love.timer.getTime() * 5) * 0.2 + 1
-    setColor(0.95, 0.85, 0.45, alpha)
+    Color.set(0.95, 0.85, 0.45, alpha)
     for i = 0, 7 do
         local angle = (i / 8) * math.pi * 2 + love.timer.getTime()
         local len = 12 * starPulse
@@ -637,17 +645,17 @@ function WorldMap:drawMessageOverlay()
     -- Title with badge background
     local font = love.graphics.getFont()
     local titleWidth = font:getWidth(msg.title)
-    setColor(0.20, 0.28, 0.38, 0.9 * alpha)
+    Color.set(0.20, 0.28, 0.38, 0.9 * alpha)
     love.graphics.rectangle("fill", boxX + (boxWidth - titleWidth) / 2 - 15, boxY + 55, titleWidth + 30, 28, 4, 4)
-    setColor(0.45, 0.60, 0.75, alpha)
+    Color.set(0.45, 0.60, 0.75, alpha)
     love.graphics.setLineWidth(1)
     love.graphics.rectangle("line", boxX + (boxWidth - titleWidth) / 2 - 15, boxY + 55, titleWidth + 30, 28, 4, 4)
 
-    setColor(0.95, 0.90, 0.70, alpha)
+    Color.set(0.95, 0.90, 0.70, alpha)
     love.graphics.printf(msg.title, boxX + 20, boxY + 60, boxWidth - 40, "center")
 
     -- Message text
-    setColor(0.90, 0.92, 0.95, alpha)
+    Color.set(0.90, 0.92, 0.95, alpha)
     love.graphics.printf(msg.message, boxX + 25, boxY + 100, boxWidth - 50, "left")
 
     -- Progress bar with styled appearance
@@ -657,27 +665,28 @@ function WorldMap:drawMessageOverlay()
     local progressY = boxY + boxHeight - 35
 
     -- Progress bar background
-    setColor(0.15, 0.20, 0.25, alpha)
+    Color.set(0.15, 0.20, 0.25, alpha)
     love.graphics.rectangle("fill", progressX, progressY, progressWidth, progressHeight, 3, 3)
 
     -- Progress bar fill
     local progress = timer / duration
     local gradientColor = {0.45, 0.70, 0.85}
-    setColor(gradientColor[1], gradientColor[2], gradientColor[3], alpha)
+    Color.set(gradientColor[1], gradientColor[2], gradientColor[3], alpha)
     love.graphics.rectangle("fill", progressX + 2, progressY + 2, (progressWidth - 4) * progress, progressHeight - 4, 2, 2)
 
     -- Progress bar highlight
-    setColor(gradientColor[1] + 0.2, gradientColor[2] + 0.2, gradientColor[3] + 0.2, 0.6 * alpha)
+    Color.set(gradientColor[1] + 0.2, gradientColor[2] + 0.2, gradientColor[3] + 0.2, 0.6 * alpha)
     love.graphics.rectangle("fill", progressX + 2, progressY + 2, (progressWidth - 4) * progress, (progressHeight - 4) / 2, 2, 2)
 end
 
 function WorldMap:keypressed(key)
     if key == "escape" then
-        -- Auto-save before exiting
-        if self.saveDir then
-            self:saveGame()
-        end
-        Gamestate:pop()
+        Gamestate:push(require("states.pause"))
+    elseif key == "i" then
+        -- Open inventory screen
+        local inventoryScreen = require("states.inventoryscreen")
+        inventoryScreen:enter(self.inventory, self.playerCharacter)
+        Gamestate:push(inventoryScreen)
     elseif key == "f5" then
         self:saveGame()
     elseif key == "space" then

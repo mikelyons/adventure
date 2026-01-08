@@ -1,18 +1,5 @@
 local NewGame = {}
-
--- Compatibility color setter
-local function setColor(r, g, b, a)
-    a = a or 1
-    local getVersion = love.getVersion
-    if getVersion then
-        local major = getVersion()
-        if type(major) == "number" and major >= 11 then
-            love.graphics.setColor(r, g, b, a)
-            return
-        end
-    end
-    love.graphics.setColor(r * 255, g * 255, b * 255, a * 255)
-end
+local Color = require("color")
 
 function NewGame:load()
     self.characterName = ""
@@ -33,7 +20,7 @@ function NewGame:draw()
     for y = 0, screenH, 32 do
         for x = 0, screenW, 32 do
             local wave = math.sin((x + y) * 0.01 + time * 0.5) * 0.02
-            setColor(0.08 + wave, 0.10 + wave, 0.15 + wave)
+            Color.set(0.08 + wave, 0.10 + wave, 0.15 + wave)
             love.graphics.rectangle("fill", x, y, 32, 32)
         end
     end
@@ -44,30 +31,30 @@ function NewGame:draw()
     local panelY = (screenH - panelH) / 2 - 20
 
     -- Panel shadow
-    setColor(0, 0, 0, 0.5)
+    Color.set(0, 0, 0, 0.5)
     love.graphics.rectangle("fill", panelX + 6, panelY + 6, panelW, panelH, 10, 10)
 
     -- Panel background
-    setColor(0.06, 0.10, 0.16, 0.95)
+    Color.set(0.06, 0.10, 0.16, 0.95)
     love.graphics.rectangle("fill", panelX, panelY, panelW, panelH, 10, 10)
 
     -- Inner panel
-    setColor(0.10, 0.14, 0.20, 0.9)
+    Color.set(0.10, 0.14, 0.20, 0.9)
     love.graphics.rectangle("fill", panelX + 4, panelY + 4, panelW - 8, panelH - 8, 8, 8)
 
     -- Panel border
     love.graphics.setLineWidth(3)
-    setColor(0.45, 0.55, 0.70)
+    Color.set(0.45, 0.55, 0.70)
     love.graphics.rectangle("line", panelX, panelY, panelW, panelH, 10, 10)
 
     -- Inner highlight
     love.graphics.setLineWidth(1)
-    setColor(0.55, 0.65, 0.80, 0.4)
+    Color.set(0.55, 0.65, 0.80, 0.4)
     love.graphics.rectangle("line", panelX + 3, panelY + 3, panelW - 6, panelH - 6, 8, 8)
 
     -- Corner decorations
     local cornerSize = 16
-    setColor(0.55, 0.65, 0.80)
+    Color.set(0.55, 0.65, 0.80)
     love.graphics.rectangle("fill", panelX + 12, panelY + 12, cornerSize, 2)
     love.graphics.rectangle("fill", panelX + 12, panelY + 12, 2, cornerSize)
     love.graphics.rectangle("fill", panelX + panelW - 12 - cornerSize, panelY + 12, cornerSize, 2)
@@ -78,19 +65,19 @@ function NewGame:draw()
     love.graphics.rectangle("fill", panelX + panelW - 14, panelY + panelH - 12 - cornerSize, 2, cornerSize)
 
     -- Title with decorative line
-    setColor(0.95, 0.90, 0.70)
+    Color.set(0.95, 0.90, 0.70)
     love.graphics.printf("CREATE NEW GAME", panelX, panelY + 35, panelW, "center")
 
     -- Decorative line under title
     local lineY = panelY + 60
-    setColor(0.35, 0.45, 0.55)
+    Color.set(0.35, 0.45, 0.55)
     love.graphics.rectangle("fill", panelX + 60, lineY, panelW - 120, 2)
-    setColor(0.55, 0.65, 0.80)
+    Color.set(0.55, 0.65, 0.80)
     love.graphics.rectangle("fill", panelX + 60, lineY, 20, 2)
     love.graphics.rectangle("fill", panelX + panelW - 80, lineY, 20, 2)
 
     -- Instructions
-    setColor(0.70, 0.75, 0.85)
+    Color.set(0.70, 0.75, 0.85)
     love.graphics.printf("Enter your character name:", panelX, panelY + 90, panelW, "center")
 
     -- Name input box
@@ -99,27 +86,27 @@ function NewGame:draw()
     local inputY = panelY + 125
 
     -- Input shadow
-    setColor(0, 0, 0, 0.4)
+    Color.set(0, 0, 0, 0.4)
     love.graphics.rectangle("fill", inputX + 3, inputY + 3, inputW, inputH, 6, 6)
 
     -- Input background
-    setColor(0.12, 0.16, 0.22)
+    Color.set(0.12, 0.16, 0.22)
     love.graphics.rectangle("fill", inputX, inputY, inputW, inputH, 6, 6)
 
     -- Input border (glowing when active)
     local glow = self.inputMode and (math.sin(time * 3) * 0.2 + 0.8) or 0.6
-    setColor(0.45 * glow, 0.65 * glow, 0.85 * glow)
+    Color.set(0.45 * glow, 0.65 * glow, 0.85 * glow)
     love.graphics.setLineWidth(2)
     love.graphics.rectangle("line", inputX, inputY, inputW, inputH, 6, 6)
 
     -- Character name text
-    setColor(0.95, 0.95, 1)
+    Color.set(0.95, 0.95, 1)
     love.graphics.print(self.characterName, inputX + 15, inputY + 13)
 
     -- Cursor blink when in input mode
     if self.inputMode and math.floor(time * 2) % 2 == 0 then
         local textWidth = love.graphics.getFont():getWidth(self.characterName)
-        setColor(0.85, 0.90, 1)
+        Color.set(0.85, 0.90, 1)
         love.graphics.rectangle("fill", inputX + 15 + textWidth + 2, inputY + 10, 2, 25)
     end
 
@@ -129,28 +116,28 @@ function NewGame:draw()
     local countY = inputY + inputH + 8
 
     -- Progress bar background
-    setColor(0.15, 0.18, 0.22)
+    Color.set(0.15, 0.18, 0.22)
     love.graphics.rectangle("fill", countX, countY, inputW, 6, 2, 2)
 
     -- Progress bar fill
     local progress = charCount / self.maxNameLength
     local barColor = progress > 0.9 and {0.85, 0.55, 0.45} or {0.45, 0.65, 0.85}
-    setColor(barColor[1], barColor[2], barColor[3])
+    Color.set(barColor[1], barColor[2], barColor[3])
     love.graphics.rectangle("fill", countX + 1, countY + 1, (inputW - 2) * progress, 4, 1, 1)
 
     -- Count text
-    setColor(0.60, 0.65, 0.75)
+    Color.set(0.60, 0.65, 0.75)
     love.graphics.printf(charCount .. "/" .. self.maxNameLength, countX, countY + 12, inputW, "center")
 
     -- Error message
     if self.errorMessage ~= "" then
         -- Error background
-        setColor(0.35, 0.15, 0.15, 0.8)
+        Color.set(0.35, 0.15, 0.15, 0.8)
         love.graphics.rectangle("fill", panelX + 40, panelY + 230, panelW - 80, 30, 4, 4)
-        setColor(0.85, 0.35, 0.35)
+        Color.set(0.85, 0.35, 0.35)
         love.graphics.setLineWidth(1)
         love.graphics.rectangle("line", panelX + 40, panelY + 230, panelW - 80, 30, 4, 4)
-        setColor(1, 0.70, 0.70)
+        Color.set(1, 0.70, 0.70)
         love.graphics.printf(self.errorMessage, panelX, panelY + 237, panelW, "center")
     end
 
@@ -158,69 +145,69 @@ function NewGame:draw()
     local instructY = panelY + 280
     if not self.confirmCreate then
         -- Button hints
-        setColor(0.50, 0.60, 0.70)
+        Color.set(0.50, 0.60, 0.70)
         love.graphics.printf("Press", panelX, instructY, panelW, "center")
 
         -- ENTER button
         local enterX = panelX + panelW / 2 - 110
-        setColor(0.25, 0.35, 0.45)
+        Color.set(0.25, 0.35, 0.45)
         love.graphics.rectangle("fill", enterX, instructY + 22, 60, 26, 4, 4)
-        setColor(0.55, 0.70, 0.85)
+        Color.set(0.55, 0.70, 0.85)
         love.graphics.setLineWidth(1)
         love.graphics.rectangle("line", enterX, instructY + 22, 60, 26, 4, 4)
-        setColor(0.90, 0.95, 1)
+        Color.set(0.90, 0.95, 1)
         love.graphics.print("ENTER", enterX + 8, instructY + 27)
 
-        setColor(0.50, 0.60, 0.70)
+        Color.set(0.50, 0.60, 0.70)
         love.graphics.print("to create,", enterX + 68, instructY + 27)
 
         -- ESC button
         local escX = enterX + 145
-        setColor(0.35, 0.25, 0.25)
+        Color.set(0.35, 0.25, 0.25)
         love.graphics.rectangle("fill", escX, instructY + 22, 45, 26, 4, 4)
-        setColor(0.75, 0.55, 0.55)
+        Color.set(0.75, 0.55, 0.55)
         love.graphics.setLineWidth(1)
         love.graphics.rectangle("line", escX, instructY + 22, 45, 26, 4, 4)
-        setColor(1, 0.85, 0.85)
+        Color.set(1, 0.85, 0.85)
         love.graphics.print("ESC", escX + 10, instructY + 27)
 
-        setColor(0.50, 0.60, 0.70)
+        Color.set(0.50, 0.60, 0.70)
         love.graphics.print("to go back", escX + 52, instructY + 27)
     else
         -- Confirmation panel
-        setColor(0.18, 0.22, 0.28, 0.9)
+        Color.set(0.18, 0.22, 0.28, 0.9)
         love.graphics.rectangle("fill", panelX + 50, instructY - 5, panelW - 100, 65, 6, 6)
-        setColor(0.55, 0.75, 0.55)
+        Color.set(0.55, 0.75, 0.55)
         love.graphics.setLineWidth(2)
         love.graphics.rectangle("line", panelX + 50, instructY - 5, panelW - 100, 65, 6, 6)
 
-        setColor(0.85, 0.95, 0.85)
+        Color.set(0.85, 0.95, 0.85)
         love.graphics.printf("Create this character?", panelX, instructY + 5, panelW, "center")
 
         -- Y button
         local yX = panelX + panelW / 2 - 80
-        setColor(0.25, 0.40, 0.30)
+        Color.set(0.25, 0.40, 0.30)
         love.graphics.rectangle("fill", yX, instructY + 28, 50, 26, 4, 4)
-        setColor(0.55, 0.85, 0.60)
+        Color.set(0.55, 0.85, 0.60)
         love.graphics.setLineWidth(1)
         love.graphics.rectangle("line", yX, instructY + 28, 50, 26, 4, 4)
-        setColor(0.85, 1, 0.85)
+        Color.set(0.85, 1, 0.85)
         love.graphics.print("Y", yX + 20, instructY + 33)
 
-        setColor(0.65, 0.75, 0.65)
+        Color.set(0.65, 0.75, 0.65)
         love.graphics.print("Yes", yX + 55, instructY + 33)
 
         -- N button
         local nX = yX + 100
-        setColor(0.40, 0.28, 0.28)
+        Color.set(0.40, 0.28, 0.28)
         love.graphics.rectangle("fill", nX, instructY + 28, 50, 26, 4, 4)
-        setColor(0.85, 0.55, 0.55)
+        Color.set(0.85, 0.55, 0.55)
         love.graphics.setLineWidth(1)
         love.graphics.rectangle("line", nX, instructY + 28, 50, 26, 4, 4)
-        setColor(1, 0.85, 0.85)
+        Color.set(1, 0.85, 0.85)
         love.graphics.print("N", nX + 20, instructY + 33)
 
-        setColor(0.75, 0.60, 0.60)
+        Color.set(0.75, 0.60, 0.60)
         love.graphics.print("No", nX + 55, instructY + 33)
     end
 end

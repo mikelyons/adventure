@@ -1,21 +1,5 @@
 local Town = {}
-
--- Compatibility color setter for LÖVE 0.10.x (0-255) and 11.x+ (0-1)
-local function setColor(r, g, b, a)
-    a = a or 1
-    local getVersion = love.getVersion
-    if getVersion then
-        local major = getVersion()
-        if type(major) == "number" then
-            if major >= 11 then
-                love.graphics.setColor(r, g, b, a)
-                return
-            end
-        end
-    end
-    -- Assume 0.10 style
-    love.graphics.setColor(r * 255, g * 255, b * 255, a * 255)
-end
+local Color = require("color")
 
 local function lerp(a, b, t)
     return a + (b - a) * t
@@ -76,7 +60,8 @@ local NPC_PALETTES = {
     merchant = {
         skin = {{0.85, 0.70, 0.55}, {0.72, 0.58, 0.45}},
         clothes = {{0.75, 0.55, 0.25}, {0.60, 0.42, 0.18}},
-        apron = {0.92, 0.90, 0.85}
+        apron = {0.92, 0.90, 0.85},
+        hair = {{0.45, 0.32, 0.22}, {0.35, 0.25, 0.18}}
     },
     guard = {
         skin = {{0.72, 0.58, 0.45}, {0.60, 0.48, 0.38}},
@@ -115,7 +100,7 @@ local function drawWaterTile(x, y, ts, time)
                 brightness = 1.1
             end
 
-            setColor(c[1] * brightness, c[2] * brightness, c[3] * brightness)
+            Color.set(c[1] * brightness, c[2] * brightness, c[3] * brightness)
             love.graphics.rectangle("fill", wx, wy, 1, 1)
         end
     end
@@ -145,7 +130,7 @@ local function drawGrassTile(x, y, ts, col, row)
                 c = lerpColor(c, {0.18, 0.38, 0.22}, 0.3)
             end
 
-            setColor(c[1], c[2], c[3])
+            Color.set(c[1], c[2], c[3])
             love.graphics.rectangle("fill", wx, wy, 1, 1)
         end
     end
@@ -156,9 +141,9 @@ local function drawGrassTile(x, y, ts, col, row)
         local flowerColor = pal.flower[math.floor(flowerSeed * 3) + 1]
         local fx = x + math.floor(flowerSeed * (ts - 4)) + 2
         local fy = y + math.floor(simpleNoise(col, row, 456) * (ts - 4)) + 2
-        setColor(flowerColor[1], flowerColor[2], flowerColor[3])
+        Color.set(flowerColor[1], flowerColor[2], flowerColor[3])
         love.graphics.rectangle("fill", fx, fy, 2, 2)
-        setColor(0.95, 0.92, 0.55) -- Yellow center
+        Color.set(0.95, 0.92, 0.55) -- Yellow center
         love.graphics.rectangle("fill", fx, fy, 1, 1)
     end
 end
@@ -180,7 +165,7 @@ local function drawPathTile(x, y, ts, col, row)
             elseif noise < 0.3 then colorIdx = 3 end
 
             local c = pal.base[colorIdx]
-            setColor(c[1], c[2], c[3])
+            Color.set(c[1], c[2], c[3])
             love.graphics.rectangle("fill", wx, wy, 1, 1)
         end
     end
@@ -195,15 +180,15 @@ local function drawPathTile(x, y, ts, col, row)
         local stoneColor = pal.stone[i % 2 + 1]
 
         -- Stone body
-        setColor(stoneColor[1], stoneColor[2], stoneColor[3])
+        Color.set(stoneColor[1], stoneColor[2], stoneColor[3])
         love.graphics.rectangle("fill", stoneX, stoneY, stoneW, stoneH)
 
         -- Stone highlight
-        setColor(stoneColor[1] + 0.1, stoneColor[2] + 0.1, stoneColor[3] + 0.1)
+        Color.set(stoneColor[1] + 0.1, stoneColor[2] + 0.1, stoneColor[3] + 0.1)
         love.graphics.rectangle("fill", stoneX, stoneY, stoneW, 1)
 
         -- Stone shadow
-        setColor(stoneColor[1] - 0.1, stoneColor[2] - 0.1, stoneColor[3] - 0.1)
+        Color.set(stoneColor[1] - 0.1, stoneColor[2] - 0.1, stoneColor[3] - 0.1)
         love.graphics.rectangle("fill", stoneX, stoneY + stoneH - 1, stoneW, 1)
     end
 end
@@ -234,7 +219,7 @@ local function drawBuildingTile(x, y, ts, col, row)
             end
 
             local c = pal.base[colorIdx]
-            setColor(c[1], c[2], c[3])
+            Color.set(c[1], c[2], c[3])
             love.graphics.rectangle("fill", wx, wy, 1, 1)
         end
     end
@@ -243,7 +228,7 @@ local function drawBuildingTile(x, y, ts, col, row)
     if simpleNoise(col, row, 111) > 0.85 then
         local kx = x + math.floor(simpleNoise(col, row, 222) * (ts - 6)) + 3
         local ky = y + math.floor(simpleNoise(col, row, 333) * (ts - 6)) + 3
-        setColor(pal.base[2][1] - 0.08, pal.base[2][2] - 0.05, pal.base[2][3] - 0.05)
+        Color.set(pal.base[2][1] - 0.08, pal.base[2][2] - 0.05, pal.base[2][3] - 0.05)
         love.graphics.circle("fill", kx, ky, 2)
     end
 end
@@ -265,7 +250,7 @@ local function drawMarketTile(x, y, ts, col, row)
             elseif noise < 0.3 then colorIdx = 3 end
 
             local c = pal.base[colorIdx]
-            setColor(c[1], c[2], c[3])
+            Color.set(c[1], c[2], c[3])
             love.graphics.rectangle("fill", wx, wy, 1, 1)
         end
     end
@@ -275,11 +260,11 @@ local function drawMarketTile(x, y, ts, col, row)
         local stallColor = pal.stall[math.floor(simpleNoise(col, row, 555) * 2) + 1]
 
         -- Draw awning stripe
-        setColor(stallColor[1], stallColor[2], stallColor[3])
+        Color.set(stallColor[1], stallColor[2], stallColor[3])
         love.graphics.rectangle("fill", x + 2, y + 2, ts - 4, 4)
 
         -- Awning highlight
-        setColor(stallColor[1] + 0.15, stallColor[2] + 0.15, stallColor[3] + 0.15)
+        Color.set(stallColor[1] + 0.15, stallColor[2] + 0.15, stallColor[3] + 0.15)
         love.graphics.rectangle("fill", x + 2, y + 2, ts - 4, 1)
     end
 
@@ -287,11 +272,11 @@ local function drawMarketTile(x, y, ts, col, row)
     if simpleNoise(col, row, 666) > 0.75 then
         local cx = x + math.floor(simpleNoise(col, row, 777) * (ts - 8)) + 2
         local cy = y + 10
-        setColor(0.55, 0.42, 0.28) -- Crate color
+        Color.set(0.55, 0.42, 0.28) -- Crate color
         love.graphics.rectangle("fill", cx, cy, 6, 6)
-        setColor(0.45, 0.32, 0.20) -- Crate shadow
+        Color.set(0.45, 0.32, 0.20) -- Crate shadow
         love.graphics.rectangle("fill", cx, cy + 5, 6, 1)
-        setColor(0.65, 0.52, 0.38) -- Crate highlight
+        Color.set(0.65, 0.52, 0.38) -- Crate highlight
         love.graphics.rectangle("fill", cx, cy, 6, 1)
     end
 end
@@ -315,7 +300,7 @@ local function drawNPC(npc, time)
     end
 
     -- Shadow
-    setColor(0, 0, 0, 0.3)
+    Color.set(0, 0, 0, 0.3)
     love.graphics.ellipse("fill", x, y + size * 0.9, size * 0.7, size * 0.3)
 
     -- Body/clothes
@@ -323,35 +308,35 @@ local function drawNPC(npc, time)
     local bodyShadow = pal.robe and pal.robe[2] or (pal.clothes and pal.clothes[2]) or (pal.armor and pal.armor[2]) or {0.4, 0.4, 0.4}
 
     -- Body base
-    setColor(bodyColor[1], bodyColor[2], bodyColor[3])
+    Color.set(bodyColor[1], bodyColor[2], bodyColor[3])
     love.graphics.rectangle("fill", x - size * 0.5, y - size * 0.3, size, size * 1.2)
 
     -- Body shading
-    setColor(bodyShadow[1], bodyShadow[2], bodyShadow[3])
+    Color.set(bodyShadow[1], bodyShadow[2], bodyShadow[3])
     love.graphics.rectangle("fill", x - size * 0.5, y + size * 0.4, size, size * 0.5)
     love.graphics.rectangle("fill", x + size * 0.2, y - size * 0.3, size * 0.3, size * 1.2)
 
     -- Apron for merchant
     if pal.apron then
-        setColor(pal.apron[1], pal.apron[2], pal.apron[3])
+        Color.set(pal.apron[1], pal.apron[2], pal.apron[3])
         love.graphics.rectangle("fill", x - size * 0.35, y, size * 0.7, size * 0.8)
     end
 
     -- Helmet for guard
     if pal.helmet then
-        setColor(pal.helmet[1][1], pal.helmet[1][2], pal.helmet[1][3])
+        Color.set(pal.helmet[1][1], pal.helmet[1][2], pal.helmet[1][3])
         love.graphics.rectangle("fill", x - size * 0.45, y - size * 1.1, size * 0.9, size * 0.5)
         -- Helmet highlight
-        setColor(pal.helmet[2][1], pal.helmet[2][2], pal.helmet[2][3])
+        Color.set(pal.helmet[2][1], pal.helmet[2][2], pal.helmet[2][3])
         love.graphics.rectangle("fill", x - size * 0.45, y - size * 1.1, size * 0.9, size * 0.15)
     end
 
     -- Head
-    setColor(pal.skin[1][1], pal.skin[1][2], pal.skin[1][3])
+    Color.set(pal.skin[1][1], pal.skin[1][2], pal.skin[1][3])
     love.graphics.circle("fill", x, y - size * 0.6, size * 0.5)
 
     -- Face shadow
-    setColor(pal.skin[2][1], pal.skin[2][2], pal.skin[2][3])
+    Color.set(pal.skin[2][1], pal.skin[2][2], pal.skin[2][3])
     love.graphics.arc("fill", x, y - size * 0.6, size * 0.5, math.pi * 0.1, math.pi * 0.9)
 
     -- Hair (not for helmeted guard)
@@ -360,18 +345,18 @@ local function drawNPC(npc, time)
         if type(hairColor[1]) == "table" then
             hairColor = hairColor[math.floor(simpleNoise(npc.x, npc.y, 123) * #hairColor) + 1]
         end
-        setColor(hairColor[1], hairColor[2], hairColor[3])
+        Color.set(hairColor[1], hairColor[2], hairColor[3])
         love.graphics.arc("fill", x, y - size * 0.7, size * 0.5, math.pi * 1.1, math.pi * 1.9)
     end
 
     -- Eyes
-    setColor(1, 1, 1)
+    Color.set(1, 1, 1)
     love.graphics.circle("fill", x - size * 0.2, y - size * 0.65, size * 0.12)
     love.graphics.circle("fill", x + size * 0.2, y - size * 0.65, size * 0.12)
 
     -- Pupils (with slight animation)
     local eyeOffset = math.sin(time * 2) * 0.02
-    setColor(0.1, 0.1, 0.15)
+    Color.set(0.1, 0.1, 0.15)
     love.graphics.circle("fill", x - size * 0.2 + eyeOffset * size, y - size * 0.65, size * 0.06)
     love.graphics.circle("fill", x + size * 0.2 + eyeOffset * size, y - size * 0.65, size * 0.06)
 
@@ -382,11 +367,11 @@ local function drawNPC(npc, time)
     local nameY = y - size * 1.6
 
     -- Name background
-    setColor(0, 0, 0, 0.6)
+    Color.set(0, 0, 0, 0.6)
     love.graphics.rectangle("fill", nameX - 4, nameY - 2, nameWidth + 8, 16, 3, 3)
 
     -- Name text
-    setColor(1, 1, 0.9)
+    Color.set(1, 1, 0.9)
     love.graphics.print(npc.name, nameX, nameY)
 end
 
@@ -402,11 +387,11 @@ local function drawPlayer(player, time)
     local bobY = moving and math.abs(walkCycle) * 2 or 0
 
     -- Shadow
-    setColor(0, 0, 0, 0.3)
+    Color.set(0, 0, 0, 0.3)
     love.graphics.ellipse("fill", x, y + size * 0.9, size * 0.7, size * 0.3)
 
     -- Legs (animated when moving)
-    setColor(0.35, 0.30, 0.25) -- Dark pants
+    Color.set(0.35, 0.30, 0.25) -- Dark pants
     if moving then
         local legOffset = walkCycle * size * 0.3
         love.graphics.rectangle("fill", x - size * 0.35, y + size * 0.2 - bobY, size * 0.25, size * 0.7 + legOffset * 0.5)
@@ -417,28 +402,28 @@ local function drawPlayer(player, time)
     end
 
     -- Boots
-    setColor(0.45, 0.35, 0.25)
+    Color.set(0.45, 0.35, 0.25)
     love.graphics.rectangle("fill", x - size * 0.4, y + size * 0.75, size * 0.35, size * 0.2)
     love.graphics.rectangle("fill", x + size * 0.05, y + size * 0.75, size * 0.35, size * 0.2)
 
     -- Body/tunic
-    setColor(0.25, 0.45, 0.65) -- Blue tunic
+    Color.set(0.25, 0.45, 0.65) -- Blue tunic
     love.graphics.rectangle("fill", x - size * 0.45, y - size * 0.4 - bobY, size * 0.9, size * 0.7)
 
     -- Tunic shading
-    setColor(0.18, 0.35, 0.52)
+    Color.set(0.18, 0.35, 0.52)
     love.graphics.rectangle("fill", x + size * 0.15, y - size * 0.4 - bobY, size * 0.3, size * 0.7)
 
     -- Belt
-    setColor(0.55, 0.40, 0.25)
+    Color.set(0.55, 0.40, 0.25)
     love.graphics.rectangle("fill", x - size * 0.45, y + size * 0.15 - bobY, size * 0.9, size * 0.12)
 
     -- Belt buckle
-    setColor(0.85, 0.75, 0.45)
+    Color.set(0.85, 0.75, 0.45)
     love.graphics.rectangle("fill", x - size * 0.1, y + size * 0.15 - bobY, size * 0.2, size * 0.12)
 
     -- Arms
-    setColor(0.25, 0.45, 0.65)
+    Color.set(0.25, 0.45, 0.65)
     if dir == "left" then
         love.graphics.rectangle("fill", x - size * 0.65, y - size * 0.25 - bobY, size * 0.25, size * 0.5)
     elseif dir == "right" then
@@ -449,16 +434,16 @@ local function drawPlayer(player, time)
     end
 
     -- Hands
-    setColor(0.92, 0.78, 0.62) -- Skin
+    Color.set(0.92, 0.78, 0.62) -- Skin
     love.graphics.circle("fill", x - size * 0.55, y + size * 0.2 - bobY, size * 0.12)
     love.graphics.circle("fill", x + size * 0.55, y + size * 0.2 - bobY, size * 0.12)
 
     -- Head
-    setColor(0.92, 0.78, 0.62)
+    Color.set(0.92, 0.78, 0.62)
     love.graphics.circle("fill", x, y - size * 0.65 - bobY, size * 0.45)
 
     -- Hair
-    setColor(0.35, 0.25, 0.18)
+    Color.set(0.35, 0.25, 0.18)
     love.graphics.arc("fill", x, y - size * 0.75 - bobY, size * 0.45, math.pi * 1.1, math.pi * 1.9)
     -- Hair tuft
     love.graphics.polygon("fill",
@@ -470,7 +455,7 @@ local function drawPlayer(player, time)
     -- Face based on direction
     if dir == "up" then
         -- Back of head (no face visible)
-        setColor(0.35, 0.25, 0.18)
+        Color.set(0.35, 0.25, 0.18)
         love.graphics.arc("fill", x, y - size * 0.65 - bobY, size * 0.4, math.pi * 0.2, math.pi * 0.8)
     else
         -- Eyes
@@ -478,22 +463,22 @@ local function drawPlayer(player, time)
         if dir == "left" then eyeOffsetX = -size * 0.1
         elseif dir == "right" then eyeOffsetX = size * 0.1 end
 
-        setColor(1, 1, 1)
+        Color.set(1, 1, 1)
         love.graphics.circle("fill", x - size * 0.18 + eyeOffsetX, y - size * 0.7 - bobY, size * 0.1)
         love.graphics.circle("fill", x + size * 0.18 + eyeOffsetX, y - size * 0.7 - bobY, size * 0.1)
 
         -- Pupils
-        setColor(0.2, 0.35, 0.5)
+        Color.set(0.2, 0.35, 0.5)
         love.graphics.circle("fill", x - size * 0.16 + eyeOffsetX, y - size * 0.7 - bobY, size * 0.06)
         love.graphics.circle("fill", x + size * 0.2 + eyeOffsetX, y - size * 0.7 - bobY, size * 0.06)
 
         -- Eyebrows
-        setColor(0.30, 0.22, 0.15)
+        Color.set(0.30, 0.22, 0.15)
         love.graphics.rectangle("fill", x - size * 0.28 + eyeOffsetX, y - size * 0.85 - bobY, size * 0.2, size * 0.06)
         love.graphics.rectangle("fill", x + size * 0.08 + eyeOffsetX, y - size * 0.85 - bobY, size * 0.2, size * 0.06)
 
         -- Mouth
-        setColor(0.75, 0.55, 0.50)
+        Color.set(0.75, 0.55, 0.50)
         love.graphics.rectangle("fill", x - size * 0.1 + eyeOffsetX, y - size * 0.45 - bobY, size * 0.2, size * 0.06)
     end
 end
@@ -533,6 +518,10 @@ function Town:load()
     -- NPCs and Actors
     self.npcs = {}
     self.actors = {} -- For cutscenes
+
+    -- Buildings with entrances (Metroid-style interiors)
+    self.buildings = {}
+    self.nearbyBuilding = nil
 
     -- Dialogue system
     self.dialogue = {
@@ -693,7 +682,7 @@ end
 function Town:generateTownTiles()
     self.tiles = {}
     local scale = self.townData.scale or 0.12
-    
+
     for row = 1, self.town.rows do
         self.tiles[row] = {}
         for col = 1, self.town.cols do
@@ -713,8 +702,126 @@ function Town:generateTownTiles()
             self.tiles[row][col] = tile
         end
     end
-    
+
+    -- Generate buildings with entrances
+    self:generateBuildings()
+
     print("Generated town tiles: " .. self.town.cols .. "x" .. self.town.rows)
+end
+
+function Town:generateBuildings()
+    self.buildings = {}
+
+    -- Building types to place
+    local buildingTypes = {
+        {type = "inn", name = "The Rusty Anchor Inn", width = 5, height = 4},
+        {type = "shop", name = "General Store", width = 4, height = 3},
+        {type = "tavern", name = "The Golden Mug Tavern", width = 6, height = 4},
+        {type = "blacksmith", name = "Blacksmith", width = 4, height = 4},
+        {type = "house", name = "House", width = 3, height = 3},
+        {type = "house", name = "Cottage", width = 3, height = 3},
+        {type = "house", name = "Dwelling", width = 3, height = 3},
+    }
+
+    local ts = self.town.tileSize
+    local placedCount = 0
+    local maxAttempts = 100
+
+    for _, buildingDef in ipairs(buildingTypes) do
+        local placed = false
+        local attempts = 0
+
+        while not placed and attempts < maxAttempts do
+            attempts = attempts + 1
+
+            -- Find a random position on building/market tiles
+            local col = math.random(5, self.town.cols - buildingDef.width - 5)
+            local row = math.random(5, self.town.rows - buildingDef.height - 5)
+
+            -- Check if area is suitable (mostly building or market tiles, not water)
+            local suitable = true
+            local buildingTileCount = 0
+
+            for r = row, row + buildingDef.height - 1 do
+                for c = col, col + buildingDef.width - 1 do
+                    local tile = self.tiles[r] and self.tiles[r][c]
+                    if tile == "water" then
+                        suitable = false
+                        break
+                    end
+                    if tile == "building" or tile == "market" then
+                        buildingTileCount = buildingTileCount + 1
+                    end
+                end
+                if not suitable then break end
+            end
+
+            -- Need at least half the area to be building/market
+            if buildingTileCount < (buildingDef.width * buildingDef.height) / 2 then
+                suitable = false
+            end
+
+            -- Check for overlap with existing buildings
+            if suitable then
+                for _, existing in ipairs(self.buildings) do
+                    local newX = col * ts
+                    local newY = row * ts
+                    local newW = buildingDef.width * ts
+                    local newH = buildingDef.height * ts
+
+                    if newX < existing.x + existing.width + ts * 2 and
+                       newX + newW + ts * 2 > existing.x and
+                       newY < existing.y + existing.height + ts * 2 and
+                       newY + newH + ts * 2 > existing.y then
+                        suitable = false
+                        break
+                    end
+                end
+            end
+
+            if suitable then
+                -- Place the building
+                local building = {
+                    x = col * ts,
+                    y = row * ts,
+                    width = buildingDef.width * ts,
+                    height = buildingDef.height * ts,
+                    type = buildingDef.type,
+                    name = buildingDef.name,
+                    doorX = col * ts + (buildingDef.width * ts) / 2 - ts / 2,
+                    doorY = (row + buildingDef.height - 1) * ts,
+                    col = col,
+                    row = row,
+                    gridWidth = buildingDef.width,
+                    gridHeight = buildingDef.height
+                }
+                table.insert(self.buildings, building)
+
+                -- Mark tiles as occupied by this building
+                for r = row, row + buildingDef.height - 1 do
+                    for c = col, col + buildingDef.width - 1 do
+                        self.tiles[r][c] = "building_floor"
+                    end
+                end
+
+                -- Create path leading to door
+                local doorRow = row + buildingDef.height
+                if doorRow <= self.town.rows then
+                    local doorCol = col + math.floor(buildingDef.width / 2)
+                    for r = doorRow, math.min(doorRow + 2, self.town.rows) do
+                        if self.tiles[r] and self.tiles[r][doorCol] then
+                            self.tiles[r][doorCol] = "path"
+                        end
+                    end
+                end
+
+                placed = true
+                placedCount = placedCount + 1
+            end
+        end
+    end
+
+    print("Placed " .. placedCount .. " buildings")
 end
 
 function Town:loadNPCs()
@@ -871,6 +978,9 @@ function Town:update(dt)
     -- Check for NPC interactions
     self:checkNPCInteractions()
 
+    -- Check for building interactions
+    self:checkBuildingInteractions()
+
     -- Camera follows player
     local screenW, screenH = love.graphics.getDimensions()
     self.camera.x = clamp(self.player.x - screenW / 2, 0, self.town.width - screenW)
@@ -912,6 +1022,30 @@ function Town:checkNPCInteractions()
     
     self.interactionPrompt = nil
     self.nearbyNPC = nil
+end
+
+function Town:checkBuildingInteractions()
+    if not self.buildings then return end
+
+    for _, building in ipairs(self.buildings) do
+        -- Check distance to door
+        local doorCenterX = building.doorX + self.town.tileSize / 2
+        local doorCenterY = building.doorY + self.town.tileSize / 2
+
+        local dx = self.player.x - doorCenterX
+        local dy = self.player.y - doorCenterY
+        local distance = math.sqrt(dx * dx + dy * dy)
+
+        local interactionDistance = self.player.size + self.town.tileSize
+
+        if distance <= interactionDistance then
+            self.interactionPrompt = "Press SPACE to enter " .. building.name
+            self.nearbyBuilding = building
+            return
+        end
+    end
+
+    self.nearbyBuilding = nil
 end
 
 function Town:updateDialogue(dt)
@@ -1012,6 +1146,118 @@ function Town:startCutscene(script)
     end
 end
 
+function Town:drawBuildings(screenW, screenH, time)
+    if not self.buildings then return end
+
+    local ts = self.town.tileSize
+
+    for _, building in ipairs(self.buildings) do
+        -- Check if building is visible
+        if building.x + building.width > self.camera.x and
+           building.x < self.camera.x + screenW and
+           building.y + building.height > self.camera.y and
+           building.y < self.camera.y + screenH then
+
+            local bx, by = building.x, building.y
+            local bw, bh = building.width, building.height
+
+            -- Building shadow
+            Color.set(0, 0, 0, 0.3)
+            love.graphics.rectangle("fill", bx + 4, by + 4, bw, bh)
+
+            -- Building walls
+            Color.set(0.55, 0.42, 0.32)
+            love.graphics.rectangle("fill", bx, by, bw, bh)
+
+            -- Wall detail (planks)
+            Color.set(0.48, 0.36, 0.28)
+            for px = bx, bx + bw - 1, 12 do
+                love.graphics.rectangle("fill", px, by, 2, bh)
+            end
+
+            -- Roof
+            local roofHeight = ts * 1.5
+            Color.set(0.60, 0.32, 0.28)
+            love.graphics.polygon("fill",
+                bx - 8, by,
+                bx + bw / 2, by - roofHeight,
+                bx + bw + 8, by
+            )
+
+            -- Roof shingles
+            Color.set(0.50, 0.25, 0.22)
+            for ry = by - roofHeight + 8, by - 4, 8 do
+                local roofProgress = (ry - (by - roofHeight)) / roofHeight
+                local halfWidth = (bw / 2 + 8) * roofProgress
+                love.graphics.line(bx + bw / 2 - halfWidth, ry, bx + bw / 2 + halfWidth, ry)
+            end
+
+            -- Door
+            local doorX = building.doorX
+            local doorY = building.doorY
+            local doorW = ts
+            local doorH = ts * 1.5
+            local isNear = self.nearbyBuilding == building
+
+            -- Door frame
+            Color.set(0.35, 0.25, 0.18)
+            love.graphics.rectangle("fill", doorX - 3, doorY - doorH - 3, doorW + 6, doorH + 6)
+
+            -- Door
+            if isNear then
+                Color.set(0.60, 0.45, 0.30)
+            else
+                Color.set(0.50, 0.38, 0.25)
+            end
+            love.graphics.rectangle("fill", doorX, doorY - doorH, doorW, doorH)
+
+            -- Door handle
+            Color.set(0.70, 0.55, 0.25)
+            love.graphics.circle("fill", doorX + doorW - 6, doorY - doorH / 2, 3)
+
+            -- Windows
+            local windowY = by + ts / 2
+            local windowSize = ts * 0.6
+
+            -- Left window
+            if bw > ts * 3 then
+                Color.set(0.35, 0.28, 0.22)
+                love.graphics.rectangle("fill", bx + ts / 2 - 2, windowY - 2, windowSize + 4, windowSize + 4)
+                Color.set(0.55, 0.70, 0.85)
+                love.graphics.rectangle("fill", bx + ts / 2, windowY, windowSize, windowSize)
+                -- Window cross
+                Color.set(0.35, 0.28, 0.22)
+                love.graphics.rectangle("fill", bx + ts / 2 + windowSize / 2 - 1, windowY, 2, windowSize)
+                love.graphics.rectangle("fill", bx + ts / 2, windowY + windowSize / 2 - 1, windowSize, 2)
+            end
+
+            -- Right window
+            if bw > ts * 4 then
+                local rwx = bx + bw - ts / 2 - windowSize
+                Color.set(0.35, 0.28, 0.22)
+                love.graphics.rectangle("fill", rwx - 2, windowY - 2, windowSize + 4, windowSize + 4)
+                Color.set(0.55, 0.70, 0.85)
+                love.graphics.rectangle("fill", rwx, windowY, windowSize, windowSize)
+                Color.set(0.35, 0.28, 0.22)
+                love.graphics.rectangle("fill", rwx + windowSize / 2 - 1, windowY, 2, windowSize)
+                love.graphics.rectangle("fill", rwx, windowY + windowSize / 2 - 1, windowSize, 2)
+            end
+
+            -- Building name sign (if near)
+            if isNear then
+                local signY = by - roofHeight - 15
+                local nameWidth = love.graphics.getFont():getWidth(building.name) + 16
+
+                Color.set(0.15, 0.12, 0.10, 0.9)
+                love.graphics.rectangle("fill", bx + bw / 2 - nameWidth / 2, signY, nameWidth, 18, 3, 3)
+
+                Color.set(0.90, 0.85, 0.60)
+                love.graphics.printf(building.name, bx + bw / 2 - nameWidth / 2, signY + 3, nameWidth, "center")
+            end
+        end
+    end
+end
+
 function Town:draw()
     local screenW, screenH = love.graphics.getDimensions()
     local ts = self.town.tileSize
@@ -1040,7 +1286,7 @@ function Town:draw()
                         drawGrassTile(tx, ty, ts, col, row)
                     elseif tile == "path" then
                         drawPathTile(tx, ty, ts, col, row)
-                    elseif tile == "building" then
+                    elseif tile == "building" or tile == "building_floor" then
                         drawBuildingTile(tx, ty, ts, col, row)
                     else -- market
                         drawMarketTile(tx, ty, ts, col, row)
@@ -1050,9 +1296,12 @@ function Town:draw()
         end
     else
         -- Fallback: draw a simple background if tiles aren't loaded
-        setColor(0.3, 0.4, 0.3)
+        Color.set(0.3, 0.4, 0.3)
         love.graphics.rectangle("fill", 0, 0, self.town.width, self.town.height)
     end
+
+    -- Draw buildings with doors
+    self:drawBuildings(screenW, screenH, time)
 
     -- Draw NPCs (sorted by Y for depth)
     local sortedNPCs = {}
@@ -1081,12 +1330,12 @@ function Town:draw()
     if self.cutscene.active then
         for _, actor in pairs(self.cutscene.actors) do
             -- Draw cutscene actors as simple circles with glow
-            setColor(actor.color[1] * 0.5, actor.color[2] * 0.5, actor.color[3] * 0.5, 0.3)
+            Color.set(actor.color[1] * 0.5, actor.color[2] * 0.5, actor.color[3] * 0.5, 0.3)
             love.graphics.circle("fill", actor.x, actor.y + actor.size * 0.8, actor.size * 1.2)
 
-            setColor(actor.color[1], actor.color[2], actor.color[3])
+            Color.set(actor.color[1], actor.color[2], actor.color[3])
             love.graphics.circle("fill", actor.x, actor.y, actor.size)
-            setColor(actor.color[1] + 0.2, actor.color[2] + 0.2, actor.color[3] + 0.2)
+            Color.set(actor.color[1] + 0.2, actor.color[2] + 0.2, actor.color[3] + 0.2)
             love.graphics.circle("fill", actor.x - actor.size * 0.3, actor.y - actor.size * 0.3, actor.size * 0.3)
         end
     end
@@ -1111,40 +1360,40 @@ function Town:drawHUD()
     local screenW = love.graphics.getDimensions()
 
     -- HUD background panel
-    setColor(0.08, 0.08, 0.15, 0.85)
+    Color.set(0.08, 0.08, 0.15, 0.85)
     love.graphics.rectangle("fill", 5, 5, 400, 55, 6, 6)
 
     -- Panel border
-    setColor(0.35, 0.32, 0.45)
+    Color.set(0.35, 0.32, 0.45)
     love.graphics.setLineWidth(2)
     love.graphics.rectangle("line", 5, 5, 400, 55, 6, 6)
 
     -- Inner highlight
-    setColor(0.45, 0.42, 0.55, 0.3)
+    Color.set(0.45, 0.42, 0.55, 0.3)
     love.graphics.rectangle("line", 7, 7, 396, 51, 5, 5)
 
     -- Town name with icon
-    setColor(0.65, 0.75, 0.95)
+    Color.set(0.65, 0.75, 0.95)
     love.graphics.print("Town:", 15, 12)
-    setColor(1, 0.95, 0.85)
+    Color.set(1, 0.95, 0.85)
     love.graphics.print(self.hud.currentTown, 60, 12)
 
     -- Separator
-    setColor(0.35, 0.32, 0.45)
+    Color.set(0.35, 0.32, 0.45)
     love.graphics.rectangle("fill", 150, 10, 2, 20)
 
     -- Player name and level
-    setColor(0.65, 0.95, 0.75)
+    Color.set(0.65, 0.95, 0.75)
     love.graphics.print(self.hud.name, 165, 12)
-    setColor(0.95, 0.85, 0.55)
+    Color.set(0.95, 0.85, 0.55)
     love.graphics.print("Lv." .. self.hud.level, 280, 12)
 
     -- Coordinates
-    setColor(0.6, 0.6, 0.7)
+    Color.set(0.6, 0.6, 0.7)
     love.graphics.print(string.format("(%.0f, %.0f)", self.player.x, self.player.y), 330, 12)
 
     -- Controls hint
-    setColor(0.5, 0.5, 0.6)
+    Color.set(0.5, 0.5, 0.6)
     love.graphics.print("WASD: Move  |  SPACE: Talk  |  ESC: World Map", 15, 38)
 end
 
@@ -1163,16 +1412,16 @@ function Town:drawInteractionPrompt()
     local pulse = math.sin(love.timer.getTime() * 4) * 0.15 + 0.85
 
     -- Background
-    setColor(0.1, 0.1, 0.2, 0.9 * pulse)
+    Color.set(0.1, 0.1, 0.2, 0.9 * pulse)
     love.graphics.rectangle("fill", boxX, boxY, boxW, boxH, 8, 8)
 
     -- Border with glow
-    setColor(0.85, 0.80, 0.45, pulse)
+    Color.set(0.85, 0.80, 0.45, pulse)
     love.graphics.setLineWidth(2)
     love.graphics.rectangle("line", boxX, boxY, boxW, boxH, 8, 8)
 
     -- Text
-    setColor(1, 1, 0.9, pulse)
+    Color.set(1, 1, 0.9, pulse)
     love.graphics.print(prompt, boxX + 15, boxY + 8)
 end
 
@@ -1181,7 +1430,7 @@ function Town:drawDialogueOverlay()
     local time = love.timer.getTime()
 
     -- Semi-transparent background with vignette effect
-    setColor(0, 0, 0, 0.6)
+    Color.set(0, 0, 0, 0.6)
     love.graphics.rectangle("fill", 0, 0, screenW, screenH)
 
     -- Dialogue box dimensions
@@ -1191,30 +1440,30 @@ function Town:drawDialogueOverlay()
     local boxY = screenH - boxHeight - 40
 
     -- Outer glow/shadow
-    setColor(0, 0, 0, 0.5)
+    Color.set(0, 0, 0, 0.5)
     love.graphics.rectangle("fill", boxX - 4, boxY - 4, boxWidth + 8, boxHeight + 8, 12, 12)
 
     -- Main box background with gradient effect
-    setColor(0.08, 0.08, 0.18, 0.95)
+    Color.set(0.08, 0.08, 0.18, 0.95)
     love.graphics.rectangle("fill", boxX, boxY, boxWidth, boxHeight, 8, 8)
 
     -- Inner panel (slightly lighter)
-    setColor(0.12, 0.12, 0.22, 0.9)
+    Color.set(0.12, 0.12, 0.22, 0.9)
     love.graphics.rectangle("fill", boxX + 4, boxY + 4, boxWidth - 8, boxHeight - 8, 6, 6)
 
     -- Decorative border
     love.graphics.setLineWidth(3)
-    setColor(0.55, 0.50, 0.70)
+    Color.set(0.55, 0.50, 0.70)
     love.graphics.rectangle("line", boxX, boxY, boxWidth, boxHeight, 8, 8)
 
     -- Inner highlight border
     love.graphics.setLineWidth(1)
-    setColor(0.70, 0.65, 0.85, 0.4)
+    Color.set(0.70, 0.65, 0.85, 0.4)
     love.graphics.rectangle("line", boxX + 3, boxY + 3, boxWidth - 6, boxHeight - 6, 6, 6)
 
     -- Corner decorations
     local cornerSize = 12
-    setColor(0.75, 0.70, 0.90)
+    Color.set(0.75, 0.70, 0.90)
     -- Top-left
     love.graphics.rectangle("fill", boxX + 8, boxY + 8, cornerSize, 2)
     love.graphics.rectangle("fill", boxX + 8, boxY + 8, 2, cornerSize)
@@ -1235,21 +1484,21 @@ function Town:drawDialogueOverlay()
         local nameWidth = font:getWidth(npcName)
 
         -- Name badge background
-        setColor(0.25, 0.22, 0.35, 0.9)
+        Color.set(0.25, 0.22, 0.35, 0.9)
         love.graphics.rectangle("fill", boxX + 15, boxY + 12, nameWidth + 20, 24, 4, 4)
 
         -- Name badge border
-        setColor(0.65, 0.60, 0.80)
+        Color.set(0.65, 0.60, 0.80)
         love.graphics.setLineWidth(1)
         love.graphics.rectangle("line", boxX + 15, boxY + 12, nameWidth + 20, 24, 4, 4)
 
         -- Name text
-        setColor(1, 0.95, 0.75)
+        Color.set(1, 0.95, 0.75)
         love.graphics.print(npcName, boxX + 25, boxY + 16)
     end
 
     -- Dialogue text with slight padding
-    setColor(0.95, 0.95, 1)
+    Color.set(0.95, 0.95, 1)
     love.graphics.printf(self.dialogue.currentText, boxX + 25, boxY + 50, boxWidth - 50, "left")
 
     -- Continue prompt with animation
@@ -1257,15 +1506,15 @@ function Town:drawDialogueOverlay()
         local bounce = math.sin(time * 5) * 3
 
         -- Prompt background
-        setColor(0.18, 0.18, 0.28, 0.8)
+        Color.set(0.18, 0.18, 0.28, 0.8)
         love.graphics.rectangle("fill", boxX + boxWidth - 200, boxY + boxHeight - 35 + bounce, 180, 25, 4, 4)
 
         -- Prompt text
-        setColor(0.95, 0.90, 0.55)
+        Color.set(0.95, 0.90, 0.55)
         love.graphics.print("SPACE to continue", boxX + boxWidth - 190, boxY + boxHeight - 31 + bounce)
 
         -- Arrow indicator
-        setColor(0.95, 0.90, 0.55)
+        Color.set(0.95, 0.90, 0.55)
         love.graphics.polygon("fill",
             boxX + boxWidth - 25, boxY + boxHeight - 23 + bounce,
             boxX + boxWidth - 15, boxY + boxHeight - 23 + bounce,
@@ -1274,7 +1523,7 @@ function Town:drawDialogueOverlay()
     else
         -- Typing indicator (animated dots)
         local dots = math.floor(time * 3) % 4
-        setColor(0.6, 0.6, 0.7)
+        Color.set(0.6, 0.6, 0.7)
         for i = 1, dots do
             love.graphics.circle("fill", boxX + boxWidth - 40 + (i * 8), boxY + boxHeight - 20, 3)
         end
@@ -1303,13 +1552,14 @@ function Town:keypressed(key)
     end
     
     if key == "escape" then
-        -- Save town position before returning to world
-        if self.saveDir then
-            self:saveTownState()
-        end
-        Gamestate:pop()
+        Gamestate:push(require("states.pause"))
     elseif key == "space" then
-        if self.nearbyNPC then
+        if self.nearbyBuilding then
+            -- Enter building (Metroid-style interior)
+            local interior = require("states.buildinginterior")
+            interior:enter(self.nearbyBuilding.type, self.nearbyBuilding.name)
+            Gamestate:push(interior)
+        elseif self.nearbyNPC then
             self:startDialogue(self.nearbyNPC)
         end
     end
