@@ -1,5 +1,6 @@
 local Town = {}
 local Color = require("color")
+local GameClock = require("gameclock")
 
 local function lerp(a, b, t)
     return a + (b - a) * t
@@ -193,6 +194,128 @@ local function drawPathTile(x, y, ts, col, row)
     end
 end
 
+-- Draw a road tile (main streets)
+local function drawRoadTile(x, y, ts, col, row)
+    local seed = col * 1000 + row
+
+    -- Base road color (dark brown/gray)
+    for py = 0, ts - 1 do
+        for px = 0, ts - 1 do
+            local wx = x + px
+            local wy = y + py
+            local noise = simpleNoise(wx, wy, seed)
+
+            local base = 0.35 + noise * 0.08
+            Color.set(base, base * 0.95, base * 0.85)
+            love.graphics.rectangle("fill", wx, wy, 1, 1)
+        end
+    end
+
+    -- Add cart wheel tracks
+    local trackY1 = y + 6
+    local trackY2 = y + ts - 8
+    Color.set(0.28, 0.26, 0.24)
+    love.graphics.rectangle("fill", x, trackY1, ts, 2)
+    love.graphics.rectangle("fill", x, trackY2, ts, 2)
+end
+
+-- Draw a plaza tile (central market square)
+local function drawPlazaTile(x, y, ts, col, row)
+    local seed = col * 1000 + row
+
+    -- Base sandstone color
+    for py = 0, ts - 1 do
+        for px = 0, ts - 1 do
+            local wx = x + px
+            local wy = y + py
+            local noise = simpleNoise(wx, wy, seed)
+
+            -- Checkered pattern for plaza stones
+            local checker = ((math.floor(px / 8) + math.floor(py / 8)) % 2 == 0)
+            local base = checker and 0.72 or 0.68
+            base = base + noise * 0.05
+
+            Color.set(base, base * 0.92, base * 0.78)
+            love.graphics.rectangle("fill", wx, wy, 1, 1)
+        end
+    end
+
+    -- Add stone borders
+    Color.set(0.55, 0.50, 0.42)
+    if col % 3 == 0 then
+        love.graphics.rectangle("fill", x, y, 1, ts)
+    end
+    if row % 3 == 0 then
+        love.graphics.rectangle("fill", x, y, ts, 1)
+    end
+end
+
+-- Draw a cobblestone tile
+local function drawCobbleTile(x, y, ts, col, row)
+    local seed = col * 1000 + row
+
+    -- Base gray
+    Color.set(0.50, 0.48, 0.45)
+    love.graphics.rectangle("fill", x, y, ts, ts)
+
+    -- Draw individual cobblestones
+    local stoneSize = 6
+    for sy = 0, ts - stoneSize, stoneSize + 1 do
+        for sx = 0, ts - stoneSize, stoneSize + 1 do
+            local offset = (math.floor(sy / (stoneSize + 1)) % 2) * 3
+            local stoneX = x + sx + offset
+            local stoneY = y + sy
+
+            local noise = simpleNoise(stoneX, stoneY, seed)
+            local shade = 0.45 + noise * 0.15
+
+            Color.set(shade, shade * 0.98, shade * 0.95)
+            love.graphics.rectangle("fill", stoneX, stoneY, stoneSize, stoneSize)
+
+            -- Highlight
+            Color.set(shade + 0.1, shade + 0.08, shade + 0.05)
+            love.graphics.rectangle("fill", stoneX, stoneY, stoneSize, 1)
+
+            -- Shadow
+            Color.set(shade - 0.1, shade - 0.1, shade - 0.08)
+            love.graphics.rectangle("fill", stoneX, stoneY + stoneSize - 1, stoneSize, 1)
+        end
+    end
+end
+
+-- Draw a garden tile
+local function drawGardenTile(x, y, ts, col, row)
+    local seed = col * 1000 + row
+
+    -- Draw grass base first
+    drawGrassTile(x, y, ts, col, row)
+
+    -- Add flowers
+    local flowerColors = {
+        {0.95, 0.45, 0.50},  -- Red
+        {0.95, 0.85, 0.40},  -- Yellow
+        {0.55, 0.45, 0.90},  -- Purple
+        {0.95, 0.70, 0.80},  -- Pink
+        {0.40, 0.70, 0.95},  -- Blue
+    }
+
+    for i = 1, 5 do
+        local fx = x + math.floor(simpleNoise(col + i, row, seed) * (ts - 4)) + 2
+        local fy = y + math.floor(simpleNoise(col, row + i, seed + 1) * (ts - 4)) + 2
+        local colorIdx = math.floor(simpleNoise(col * i, row * i, seed + 2) * #flowerColors) + 1
+        local flowerColor = flowerColors[colorIdx]
+
+        -- Flower petals
+        Color.set(flowerColor[1], flowerColor[2], flowerColor[3])
+        love.graphics.rectangle("fill", fx - 1, fy, 3, 1)
+        love.graphics.rectangle("fill", fx, fy - 1, 1, 3)
+
+        -- Flower center
+        Color.set(0.95, 0.90, 0.40)
+        love.graphics.rectangle("fill", fx, fy, 1, 1)
+    end
+end
+
 -- Draw a detailed building tile
 local function drawBuildingTile(x, y, ts, col, row)
     local pal = TILE_PALETTES.building
@@ -284,87 +407,141 @@ end
 -- Draw a detailed NPC sprite
 local function drawNPC(npc, time)
     local x, y = npc.x, npc.y
-    local size = npc.size
-    local scale = size / 10 -- Base size is 10
+    local size = npc.size or 20
+    local moving = npc.isMoving
+    local isSleeping = npc.isSleeping
 
-    -- Determine NPC type palette based on name
-    local pal
-    if npc.name:find("Elder") then
-        pal = NPC_PALETTES.elder
-    elseif npc.name:find("Merchant") then
-        pal = NPC_PALETTES.merchant
+    -- Determine NPC appearance based on type
+    local tunicColor, tunicShadow, pantsColor, hairColor, skinColor
+    local npcType = npc.type or "villager"
+
+    if npcType == "merchant" or npc.name:find("Merchant") then
+        tunicColor = {0.65, 0.50, 0.25}      -- Brown merchant clothes
+        tunicShadow = {0.50, 0.38, 0.18}
+        pantsColor = {0.40, 0.35, 0.30}
+        hairColor = {0.35, 0.25, 0.18}
+    elseif npcType == "blacksmith" or npc.name:find("Smith") then
+        tunicColor = {0.45, 0.42, 0.40}      -- Gray work clothes
+        tunicShadow = {0.35, 0.32, 0.30}
+        pantsColor = {0.30, 0.28, 0.26}
+        hairColor = {0.20, 0.18, 0.15}
+    elseif npcType == "innkeeper" or npc.name:find("Inn") then
+        tunicColor = {0.55, 0.35, 0.35}      -- Red-brown innkeeper
+        tunicShadow = {0.42, 0.25, 0.25}
+        pantsColor = {0.35, 0.30, 0.28}
+        hairColor = {0.55, 0.35, 0.20}
+    elseif npc.name:find("Elder") then
+        tunicColor = {0.50, 0.45, 0.60}      -- Purple elder robes
+        tunicShadow = {0.38, 0.33, 0.48}
+        pantsColor = {0.35, 0.32, 0.40}
+        hairColor = {0.75, 0.72, 0.70}       -- Gray hair
     elseif npc.name:find("Guard") then
-        pal = NPC_PALETTES.guard
+        tunicColor = {0.50, 0.52, 0.58}      -- Guard armor
+        tunicShadow = {0.38, 0.40, 0.45}
+        pantsColor = {0.35, 0.35, 0.38}
+        hairColor = {0.30, 0.25, 0.20}
     else
-        pal = NPC_PALETTES.villager
+        -- Villager - varied colors based on position
+        local colorSeed = (npc.homeX or npc.x) + (npc.homeY or npc.y) * 100
+        local hueVariation = simpleNoise(colorSeed, 0, 12345) * 0.3
+        tunicColor = {0.45 + hueVariation, 0.50, 0.55 - hueVariation}
+        tunicShadow = {0.33 + hueVariation, 0.38, 0.42 - hueVariation}
+        pantsColor = {0.35, 0.32, 0.30}
+        local hairSeed = simpleNoise(colorSeed, 1, 54321)
+        if hairSeed < 0.3 then
+            hairColor = {0.25, 0.20, 0.15}   -- Dark brown
+        elseif hairSeed < 0.6 then
+            hairColor = {0.55, 0.40, 0.25}   -- Light brown
+        else
+            hairColor = {0.70, 0.55, 0.35}   -- Blonde
+        end
+    end
+    skinColor = {0.92, 0.78, 0.62}
+
+    -- Animation
+    local walkCycle = moving and math.sin(time * 8) or 0
+    local bobY = moving and math.abs(walkCycle) * 2 or 0
+
+    -- If sleeping, draw lying down indicator
+    if isSleeping then
+        Color.set(0, 0, 0, 0.2)
+        love.graphics.ellipse("fill", x, y, size * 1.2, size * 0.4)
+        -- Draw "Zzz"
+        Color.set(0.8, 0.8, 1.0, 0.7)
+        love.graphics.print("z", x + size * 0.3, y - size * 0.8 + math.sin(time * 2) * 3)
+        love.graphics.print("z", x + size * 0.5, y - size * 1.0 + math.sin(time * 2 + 0.5) * 3)
+        return
     end
 
     -- Shadow
     Color.set(0, 0, 0, 0.3)
     love.graphics.ellipse("fill", x, y + size * 0.9, size * 0.7, size * 0.3)
 
-    -- Body/clothes
-    local bodyColor = pal.robe and pal.robe[1] or (pal.clothes and pal.clothes[1]) or (pal.armor and pal.armor[1]) or {0.5, 0.5, 0.5}
-    local bodyShadow = pal.robe and pal.robe[2] or (pal.clothes and pal.clothes[2]) or (pal.armor and pal.armor[2]) or {0.4, 0.4, 0.4}
-
-    -- Body base
-    Color.set(bodyColor[1], bodyColor[2], bodyColor[3])
-    love.graphics.rectangle("fill", x - size * 0.5, y - size * 0.3, size, size * 1.2)
-
-    -- Body shading
-    Color.set(bodyShadow[1], bodyShadow[2], bodyShadow[3])
-    love.graphics.rectangle("fill", x - size * 0.5, y + size * 0.4, size, size * 0.5)
-    love.graphics.rectangle("fill", x + size * 0.2, y - size * 0.3, size * 0.3, size * 1.2)
-
-    -- Apron for merchant
-    if pal.apron then
-        Color.set(pal.apron[1], pal.apron[2], pal.apron[3])
-        love.graphics.rectangle("fill", x - size * 0.35, y, size * 0.7, size * 0.8)
+    -- Legs (animated when moving)
+    Color.set(pantsColor[1], pantsColor[2], pantsColor[3])
+    if moving then
+        local legOffset = walkCycle * size * 0.3
+        love.graphics.rectangle("fill", x - size * 0.35, y + size * 0.2 - bobY, size * 0.25, size * 0.7 + legOffset * 0.5)
+        love.graphics.rectangle("fill", x + size * 0.1, y + size * 0.2 - bobY, size * 0.25, size * 0.7 - legOffset * 0.5)
+    else
+        love.graphics.rectangle("fill", x - size * 0.35, y + size * 0.2, size * 0.25, size * 0.7)
+        love.graphics.rectangle("fill", x + size * 0.1, y + size * 0.2, size * 0.25, size * 0.7)
     end
 
-    -- Helmet for guard
-    if pal.helmet then
-        Color.set(pal.helmet[1][1], pal.helmet[1][2], pal.helmet[1][3])
-        love.graphics.rectangle("fill", x - size * 0.45, y - size * 1.1, size * 0.9, size * 0.5)
-        -- Helmet highlight
-        Color.set(pal.helmet[2][1], pal.helmet[2][2], pal.helmet[2][3])
-        love.graphics.rectangle("fill", x - size * 0.45, y - size * 1.1, size * 0.9, size * 0.15)
-    end
+    -- Boots
+    Color.set(0.40, 0.32, 0.25)
+    love.graphics.rectangle("fill", x - size * 0.4, y + size * 0.75, size * 0.35, size * 0.2)
+    love.graphics.rectangle("fill", x + size * 0.05, y + size * 0.75, size * 0.35, size * 0.2)
+
+    -- Body/tunic
+    Color.set(tunicColor[1], tunicColor[2], tunicColor[3])
+    love.graphics.rectangle("fill", x - size * 0.45, y - size * 0.4 - bobY, size * 0.9, size * 0.7)
+
+    -- Tunic shading
+    Color.set(tunicShadow[1], tunicShadow[2], tunicShadow[3])
+    love.graphics.rectangle("fill", x + size * 0.15, y - size * 0.4 - bobY, size * 0.3, size * 0.7)
+
+    -- Belt
+    Color.set(0.45, 0.35, 0.25)
+    love.graphics.rectangle("fill", x - size * 0.45, y + size * 0.15 - bobY, size * 0.9, size * 0.1)
+
+    -- Arms
+    Color.set(tunicColor[1], tunicColor[2], tunicColor[3])
+    love.graphics.rectangle("fill", x - size * 0.6, y - size * 0.25 - bobY, size * 0.18, size * 0.4)
+    love.graphics.rectangle("fill", x + size * 0.42, y - size * 0.25 - bobY, size * 0.18, size * 0.4)
+
+    -- Hands
+    Color.set(skinColor[1], skinColor[2], skinColor[3])
+    love.graphics.circle("fill", x - size * 0.52, y + size * 0.15 - bobY, size * 0.1)
+    love.graphics.circle("fill", x + size * 0.52, y + size * 0.15 - bobY, size * 0.1)
 
     -- Head
-    Color.set(pal.skin[1][1], pal.skin[1][2], pal.skin[1][3])
-    love.graphics.circle("fill", x, y - size * 0.6, size * 0.5)
+    Color.set(skinColor[1], skinColor[2], skinColor[3])
+    love.graphics.ellipse("fill", x, y - size * 0.65 - bobY, size * 0.38, size * 0.42)
 
-    -- Face shadow
-    Color.set(pal.skin[2][1], pal.skin[2][2], pal.skin[2][3])
-    love.graphics.arc("fill", x, y - size * 0.6, size * 0.5, math.pi * 0.1, math.pi * 0.9)
-
-    -- Hair (not for helmeted guard)
-    if not pal.helmet then
-        local hairColor = pal.hair
-        if type(hairColor[1]) == "table" then
-            hairColor = hairColor[math.floor(simpleNoise(npc.x, npc.y, 123) * #hairColor) + 1]
-        end
-        Color.set(hairColor[1], hairColor[2], hairColor[3])
-        love.graphics.arc("fill", x, y - size * 0.7, size * 0.5, math.pi * 1.1, math.pi * 1.9)
-    end
+    -- Hair
+    Color.set(hairColor[1], hairColor[2], hairColor[3])
+    love.graphics.arc("fill", x, y - size * 0.72 - bobY, size * 0.4, math.pi * 1.0, math.pi * 2.0)
+    -- Hair sides
+    love.graphics.rectangle("fill", x - size * 0.4, y - size * 0.75 - bobY, size * 0.12, size * 0.25)
+    love.graphics.rectangle("fill", x + size * 0.28, y - size * 0.75 - bobY, size * 0.12, size * 0.25)
 
     -- Eyes
     Color.set(1, 1, 1)
-    love.graphics.circle("fill", x - size * 0.2, y - size * 0.65, size * 0.12)
-    love.graphics.circle("fill", x + size * 0.2, y - size * 0.65, size * 0.12)
+    love.graphics.circle("fill", x - size * 0.15, y - size * 0.68 - bobY, size * 0.1)
+    love.graphics.circle("fill", x + size * 0.15, y - size * 0.68 - bobY, size * 0.1)
 
-    -- Pupils (with slight animation)
-    local eyeOffset = math.sin(time * 2) * 0.02
-    Color.set(0.1, 0.1, 0.15)
-    love.graphics.circle("fill", x - size * 0.2 + eyeOffset * size, y - size * 0.65, size * 0.06)
-    love.graphics.circle("fill", x + size * 0.2 + eyeOffset * size, y - size * 0.65, size * 0.06)
+    -- Pupils
+    local eyeOffset = math.sin(time * 1.5) * 0.02
+    Color.set(0.15, 0.12, 0.10)
+    love.graphics.circle("fill", x - size * 0.15 + eyeOffset * size, y - size * 0.68 - bobY, size * 0.05)
+    love.graphics.circle("fill", x + size * 0.15 + eyeOffset * size, y - size * 0.68 - bobY, size * 0.05)
 
     -- Name tag with background
     local font = love.graphics.getFont()
     local nameWidth = font:getWidth(npc.name)
     local nameX = x - nameWidth / 2
-    local nameY = y - size * 1.6
+    local nameY = y - size * 1.5 - bobY
 
     -- Name background
     Color.set(0, 0, 0, 0.6)
@@ -484,14 +661,20 @@ local function drawPlayer(player, time)
 end
 
 function Town:load()
-    -- Player state
+    -- Player state with velocity for smooth movement
     self.player = {
         x = 400,
         y = 300,
-        speed = 180,
+        vx = 0,              -- velocity x
+        vy = 0,              -- velocity y
+        maxSpeed = 180,      -- max movement speed
+        accel = 1200,        -- acceleration (pixels/sec^2)
+        friction = 800,      -- deceleration when not moving
         size = 12,
-        direction = "down", -- down, up, left, right
-        isMoving = false
+        direction = "down",  -- down, up, left, right
+        isMoving = false,
+        animTimer = 0,       -- for walk animation
+        animFrame = 0
     }
 
     -- Town and tiles
@@ -550,27 +733,41 @@ function Town:load()
 end
 
 function Town:enter()
-    if self.saveData and self.townData then
+    -- Set controls panel mode
+    if ControlsPanel then ControlsPanel:setMode("town") end
+
+    -- Reset velocity for clean movement state
+    self.player.vx = 0
+    self.player.vy = 0
+    self.player.animTimer = 0
+    self.player.animFrame = 0
+
+    if self.saveData then
         self.hud.name = self.saveData.characterName or ""
         self.hud.level = self.saveData.level or 1
-        
+
         -- Load player position if available
         if self.saveData.townPlayerX and self.saveData.townPlayerY then
             self.player.x = self.saveData.townPlayerX
             self.player.y = self.saveData.townPlayerY
         end
-        
+    end
+
+    if self.townData then
+        -- Set town name from townData
+        self.hud.currentTown = self.townData.name or "Rivertown"
+
         -- Load town data
         self:loadTownFromData()
-        
+
         -- Check if this is the first time entering the town
-        if not self.saveData.townVisited then
+        if self.saveData and not self.saveData.townVisited then
             self:startWelcomeCutscene()
         end
     else
         -- Fallback: generate default town if no data available
-        self.hud.name = "Adventurer"
-        self.hud.level = 1
+        self.hud.name = self.hud.name or "Adventurer"
+        self.hud.level = self.hud.level or 1
         self:generateDefaultTown()
     end
 end
@@ -681,158 +878,393 @@ end
 
 function Town:generateTownTiles()
     self.tiles = {}
-    local scale = self.townData.scale or 0.12
+    local cols, rows = self.town.cols, self.town.rows
 
-    for row = 1, self.town.rows do
+    -- Initialize all tiles as grass
+    for row = 1, rows do
         self.tiles[row] = {}
-        for col = 1, self.town.cols do
-            local n = love.math.noise(col * scale, row * scale)
-            local tile
-            if n < 0.3 then
-                tile = "water"
-            elseif n < 0.4 then
-                tile = "grass"
-            elseif n < 0.6 then
-                tile = "path"
-            elseif n < 0.8 then
-                tile = "building"
-            else
-                tile = "market"
-            end
-            self.tiles[row][col] = tile
+        for col = 1, cols do
+            self.tiles[row][col] = "grass"
         end
     end
 
-    -- Generate buildings with entrances
+    -- Town center
+    local centerCol = math.floor(cols / 2)
+    local centerRow = math.floor(rows / 2)
+
+    -- Create central plaza (market square)
+    local plazaSize = 8
+    for dr = -plazaSize, plazaSize do
+        for dc = -plazaSize, plazaSize do
+            local r, c = centerRow + dr, centerCol + dc
+            if r >= 1 and r <= rows and c >= 1 and c <= cols then
+                self.tiles[r][c] = "plaza"
+            end
+        end
+    end
+
+    -- Create main streets (cross pattern from center)
+    local streetWidth = 3
+
+    -- Horizontal main street
+    for col = 1, cols do
+        for dr = -math.floor(streetWidth/2), math.floor(streetWidth/2) do
+            local r = centerRow + dr
+            if r >= 1 and r <= rows then
+                self.tiles[r][col] = "road"
+            end
+        end
+    end
+
+    -- Vertical main street
+    for row = 1, rows do
+        for dc = -math.floor(streetWidth/2), math.floor(streetWidth/2) do
+            local c = centerCol + dc
+            if c >= 1 and c <= cols then
+                self.tiles[row][c] = "road"
+            end
+        end
+    end
+
+    -- Create secondary streets (parallel to main streets)
+    local streetSpacing = 15
+    local secondaryWidth = 2
+
+    -- Horizontal secondary streets
+    for offset = -2, 2 do
+        if offset ~= 0 then
+            local streetRow = centerRow + offset * streetSpacing
+            if streetRow >= 5 and streetRow <= rows - 5 then
+                for col = 5, cols - 5 do
+                    for dr = 0, secondaryWidth - 1 do
+                        local r = streetRow + dr
+                        if r >= 1 and r <= rows then
+                            if self.tiles[r][col] == "grass" then
+                                self.tiles[r][col] = "road"
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- Vertical secondary streets
+    for offset = -2, 2 do
+        if offset ~= 0 then
+            local streetCol = centerCol + offset * streetSpacing
+            if streetCol >= 5 and streetCol <= cols - 5 then
+                for row = 5, rows - 5 do
+                    for dc = 0, secondaryWidth - 1 do
+                        local c = streetCol + dc
+                        if c >= 1 and c <= cols then
+                            if self.tiles[row][c] == "grass" then
+                                self.tiles[row][c] = "road"
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- Add some decorative elements around plaza
+    for dr = -plazaSize - 1, plazaSize + 1 do
+        for dc = -plazaSize - 1, plazaSize + 1 do
+            local r, c = centerRow + dr, centerCol + dc
+            if r >= 1 and r <= rows and c >= 1 and c <= cols then
+                if self.tiles[r][c] == "grass" then
+                    -- Edge of plaza gets cobblestone
+                    local distFromCenter = math.max(math.abs(dr), math.abs(dc))
+                    if distFromCenter == plazaSize + 1 then
+                        self.tiles[r][c] = "cobble"
+                    end
+                end
+            end
+        end
+    end
+
+    -- Add a fountain in center of plaza
+    self.fountain = {
+        x = centerCol * self.town.tileSize,
+        y = centerRow * self.town.tileSize,
+        radius = self.town.tileSize * 2
+    }
+
+    -- Generate buildings along streets
     self:generateBuildings()
 
-    print("Generated town tiles: " .. self.town.cols .. "x" .. self.town.rows)
+    -- Add some grass patches and gardens
+    self:addGardens()
+
+    print("Generated town tiles: " .. cols .. "x" .. rows)
+end
+
+function Town:addGardens()
+    local cols, rows = self.town.cols, self.town.rows
+
+    -- Add random garden patches in grass areas
+    for i = 1, 20 do
+        local col = math.random(5, cols - 5)
+        local row = math.random(5, rows - 5)
+
+        -- Check if area is suitable (all grass)
+        local suitable = true
+        for dr = -1, 1 do
+            for dc = -1, 1 do
+                local r, c = row + dr, col + dc
+                if r >= 1 and r <= rows and c >= 1 and c <= cols then
+                    if self.tiles[r][c] ~= "grass" then
+                        suitable = false
+                    end
+                end
+            end
+        end
+
+        if suitable then
+            self.tiles[row][col] = "garden"
+        end
+    end
 end
 
 function Town:generateBuildings()
     self.buildings = {}
+    local ts = self.town.tileSize
+    local cols, rows = self.town.cols, self.town.rows
+    local centerCol = math.floor(cols / 2)
+    local centerRow = math.floor(rows / 2)
 
-    -- Building types to place
-    local buildingTypes = {
-        {type = "inn", name = "The Rusty Anchor Inn", width = 5, height = 4},
-        {type = "shop", name = "General Store", width = 4, height = 3},
-        {type = "tavern", name = "The Golden Mug Tavern", width = 6, height = 4},
-        {type = "blacksmith", name = "Blacksmith", width = 4, height = 4},
-        {type = "house", name = "House", width = 3, height = 3},
-        {type = "house", name = "Cottage", width = 3, height = 3},
-        {type = "house", name = "Dwelling", width = 3, height = 3},
+    -- Building types with their properties
+    local commercialBuildings = {
+        {type = "inn", name = "The Weary Traveler Inn", width = 6, height = 5, color = {0.55, 0.35, 0.25}},
+        {type = "shop", name = "General Store", width = 5, height = 4, color = {0.50, 0.45, 0.35}},
+        {type = "tavern", name = "The Golden Mug", width = 6, height = 4, color = {0.45, 0.30, 0.25}},
+        {type = "blacksmith", name = "Ironforge Smithy", width = 5, height = 5, color = {0.40, 0.38, 0.42}},
     }
 
-    local ts = self.town.tileSize
-    local placedCount = 0
-    local maxAttempts = 100
+    local residentialBuildings = {
+        {type = "house", name = "House", width = 4, height = 4, color = {0.50, 0.42, 0.35}},
+        {type = "house", name = "Cottage", width = 3, height = 3, color = {0.55, 0.48, 0.38}},
+        {type = "house", name = "Dwelling", width = 4, height = 3, color = {0.48, 0.40, 0.32}},
+    }
 
-    for _, buildingDef in ipairs(buildingTypes) do
-        local placed = false
-        local attempts = 0
+    -- Place commercial buildings around the plaza
+    local plazaPositions = {
+        {col = centerCol - 15, row = centerRow - 12, facing = "south"},
+        {col = centerCol + 10, row = centerRow - 12, facing = "south"},
+        {col = centerCol - 15, row = centerRow + 10, facing = "north"},
+        {col = centerCol + 10, row = centerRow + 10, facing = "north"},
+    }
 
-        while not placed and attempts < maxAttempts do
-            attempts = attempts + 1
+    for i, pos in ipairs(plazaPositions) do
+        if i <= #commercialBuildings then
+            local bldg = commercialBuildings[i]
+            self:placeBuilding(pos.col, pos.row, bldg, pos.facing)
+        end
+    end
 
-            -- Find a random position on building/market tiles
-            local col = math.random(5, self.town.cols - buildingDef.width - 5)
-            local row = math.random(5, self.town.rows - buildingDef.height - 5)
+    -- Place residential buildings along secondary streets
+    local residentialPositions = {}
 
-            -- Check if area is suitable (mostly building or market tiles, not water)
-            local suitable = true
-            local buildingTileCount = 0
-
-            for r = row, row + buildingDef.height - 1 do
-                for c = col, col + buildingDef.width - 1 do
-                    local tile = self.tiles[r] and self.tiles[r][c]
-                    if tile == "water" then
-                        suitable = false
-                        break
-                    end
-                    if tile == "building" or tile == "market" then
-                        buildingTileCount = buildingTileCount + 1
-                    end
-                end
-                if not suitable then break end
-            end
-
-            -- Need at least half the area to be building/market
-            if buildingTileCount < (buildingDef.width * buildingDef.height) / 2 then
-                suitable = false
-            end
-
-            -- Check for overlap with existing buildings
-            if suitable then
-                for _, existing in ipairs(self.buildings) do
-                    local newX = col * ts
-                    local newY = row * ts
-                    local newW = buildingDef.width * ts
-                    local newH = buildingDef.height * ts
-
-                    if newX < existing.x + existing.width + ts * 2 and
-                       newX + newW + ts * 2 > existing.x and
-                       newY < existing.y + existing.height + ts * 2 and
-                       newY + newH + ts * 2 > existing.y then
-                        suitable = false
-                        break
+    -- Along secondary horizontal streets
+    for offset = -2, 2 do
+        if offset ~= 0 then
+            local streetRow = centerRow + offset * 15
+            if streetRow >= 10 and streetRow <= rows - 10 then
+                -- Buildings on both sides of street
+                for colOffset = -30, 30, 12 do
+                    local col = centerCol + colOffset
+                    if col >= 8 and col <= cols - 12 then
+                        -- Above street
+                        table.insert(residentialPositions, {col = col, row = streetRow - 6, facing = "south"})
+                        -- Below street
+                        table.insert(residentialPositions, {col = col, row = streetRow + 4, facing = "north"})
                     end
                 end
-            end
-
-            if suitable then
-                -- Place the building
-                local building = {
-                    x = col * ts,
-                    y = row * ts,
-                    width = buildingDef.width * ts,
-                    height = buildingDef.height * ts,
-                    type = buildingDef.type,
-                    name = buildingDef.name,
-                    doorX = col * ts + (buildingDef.width * ts) / 2 - ts / 2,
-                    doorY = (row + buildingDef.height - 1) * ts,
-                    col = col,
-                    row = row,
-                    gridWidth = buildingDef.width,
-                    gridHeight = buildingDef.height
-                }
-                table.insert(self.buildings, building)
-
-                -- Mark tiles as occupied by this building
-                for r = row, row + buildingDef.height - 1 do
-                    for c = col, col + buildingDef.width - 1 do
-                        self.tiles[r][c] = "building_floor"
-                    end
-                end
-
-                -- Create path leading to door
-                local doorRow = row + buildingDef.height
-                if doorRow <= self.town.rows then
-                    local doorCol = col + math.floor(buildingDef.width / 2)
-                    for r = doorRow, math.min(doorRow + 2, self.town.rows) do
-                        if self.tiles[r] and self.tiles[r][doorCol] then
-                            self.tiles[r][doorCol] = "path"
-                        end
-                    end
-                end
-
-                placed = true
-                placedCount = placedCount + 1
             end
         end
     end
 
-    print("Placed " .. placedCount .. " buildings")
+    -- Place residential buildings
+    local houseIndex = 1
+    for i, pos in ipairs(residentialPositions) do
+        if self:canPlaceBuilding(pos.col, pos.row, 4, 4) then
+            local bldg = residentialBuildings[((houseIndex - 1) % #residentialBuildings) + 1]
+            local building = self:placeBuilding(pos.col, pos.row, bldg, pos.facing)
+            if building then
+                houseIndex = houseIndex + 1
+            end
+        end
+    end
+
+    print("Placed " .. #self.buildings .. " buildings")
+end
+
+function Town:canPlaceBuilding(col, row, width, height)
+    local cols, rows = self.town.cols, self.town.rows
+
+    -- Check bounds
+    if col < 3 or col + width > cols - 3 or row < 3 or row + height > rows - 3 then
+        return false
+    end
+
+    -- Check if area is grass (not on roads/plaza)
+    for r = row, row + height - 1 do
+        for c = col, col + width - 1 do
+            local tile = self.tiles[r] and self.tiles[r][c]
+            if tile ~= "grass" and tile ~= "garden" then
+                return false
+            end
+        end
+    end
+
+    -- Check for overlap with existing buildings (with margin)
+    local ts = self.town.tileSize
+    for _, existing in ipairs(self.buildings) do
+        local newX = col * ts
+        local newY = row * ts
+        local newW = width * ts
+        local newH = height * ts
+        local margin = ts * 2
+
+        if newX < existing.x + existing.width + margin and
+           newX + newW + margin > existing.x and
+           newY < existing.y + existing.height + margin and
+           newY + newH + margin > existing.y then
+            return false
+        end
+    end
+
+    return true
+end
+
+function Town:placeBuilding(col, row, bldgDef, facing)
+    local ts = self.town.tileSize
+
+    if not self:canPlaceBuilding(col, row, bldgDef.width, bldgDef.height) then
+        return nil
+    end
+
+    -- Calculate door position based on facing
+    local doorCol, doorRow
+    if facing == "south" then
+        doorCol = col + math.floor(bldgDef.width / 2)
+        doorRow = row + bldgDef.height
+    elseif facing == "north" then
+        doorCol = col + math.floor(bldgDef.width / 2)
+        doorRow = row - 1
+    elseif facing == "east" then
+        doorCol = col + bldgDef.width
+        doorRow = row + math.floor(bldgDef.height / 2)
+    else -- west
+        doorCol = col - 1
+        doorRow = row + math.floor(bldgDef.height / 2)
+    end
+
+    local building = {
+        x = col * ts,
+        y = row * ts,
+        width = bldgDef.width * ts,
+        height = bldgDef.height * ts,
+        type = bldgDef.type,
+        name = bldgDef.name,
+        color = bldgDef.color or {0.50, 0.40, 0.30},
+        doorX = doorCol * ts,
+        doorY = doorRow * ts,
+        facing = facing,
+        col = col,
+        row = row,
+        gridWidth = bldgDef.width,
+        gridHeight = bldgDef.height
+    }
+
+    table.insert(self.buildings, building)
+
+    -- Mark tiles as building footprint
+    for r = row, row + bldgDef.height - 1 do
+        for c = col, col + bldgDef.width - 1 do
+            self.tiles[r][c] = "building_floor"
+        end
+    end
+
+    -- Create path from door to nearest road
+    self:createPathToRoad(doorCol, doorRow)
+
+    return building
+end
+
+function Town:createPathToRoad(startCol, startRow)
+    local cols, rows = self.town.cols, self.town.rows
+
+    -- Simple path finding to nearest road
+    local directions = {{0, 1}, {0, -1}, {1, 0}, {-1, 0}}
+    local col, row = startCol, startRow
+
+    for step = 1, 10 do
+        if row < 1 or row > rows or col < 1 or col > cols then break end
+
+        local tile = self.tiles[row] and self.tiles[row][col]
+        if tile == "road" or tile == "plaza" then
+            break
+        end
+
+        if tile == "grass" or tile == "garden" then
+            self.tiles[row][col] = "path"
+        end
+
+        -- Move towards center (where roads are)
+        local centerCol = math.floor(cols / 2)
+        local centerRow = math.floor(rows / 2)
+
+        if math.abs(col - centerCol) > math.abs(row - centerRow) then
+            col = col + (centerCol > col and 1 or -1)
+        else
+            row = row + (centerRow > row and 1 or -1)
+        end
+    end
 end
 
 function Town:loadNPCs()
     self.npcs = {}
-    if self.townData.npcs then
+    if self.townData and self.townData.npcs then
         for _, npcData in ipairs(self.townData.npcs) do
-            if npcData and npcData.x and npcData.y and npcData.name then
+            if npcData and npcData.name then
+                -- Calculate positions based on buildings
+                local homeX = npcData.homeX or npcData.x or 400
+                local homeY = npcData.homeY or npcData.y or 300
+
+                -- Find work location based on NPC type
+                local workX, workY = homeX, homeY
+                local marketX, marketY = self.town.width / 2, self.town.height / 2
+                local tavernX, tavernY = self.town.width / 3, self.town.height / 3
+
+                -- Assign work locations based on buildings if available
+                if self.buildings then
+                    for _, building in ipairs(self.buildings) do
+                        if npcData.type == "merchant" and building.type == "shop" then
+                            workX = building.x + building.width / 2
+                            workY = building.y + building.height / 2
+                        elseif npcData.type == "blacksmith" and building.type == "blacksmith" then
+                            workX = building.x + building.width / 2
+                            workY = building.y + building.height / 2
+                        elseif npcData.type == "innkeeper" and building.type == "inn" then
+                            workX = building.x + building.width / 2
+                            workY = building.y + building.height / 2
+                        elseif building.type == "market" then
+                            marketX = building.x + building.width / 2
+                            marketY = building.y + building.height / 2
+                        elseif building.type == "tavern" then
+                            tavernX = building.x + building.width / 2
+                            tavernY = building.y + building.height / 2
+                        end
+                    end
+                end
+
                 local npc = {
-                    x = npcData.x,
-                    y = npcData.y,
+                    x = homeX,
+                    y = homeY,
                     name = npcData.name,
+                    type = npcData.type or "villager",
                     size = npcData.size or 10,
                     color = npcData.color or {0.8, 0.6, 0.4},
                     dialogue = npcData.dialogue or {},
@@ -840,19 +1272,30 @@ function Town:loadNPCs()
                     currentDialogue = 1,
                     lastTalked = 0,
                     isMoving = false,
-                    targetX = npcData.x,
-                    targetY = npcData.y,
-                    speed = npcData.speed or 30
+                    isSleeping = false,
+                    targetX = homeX,
+                    targetY = homeY,
+                    homeX = homeX,
+                    homeY = homeY,
+                    workX = workX,
+                    workY = workY,
+                    marketX = marketX,
+                    marketY = marketY,
+                    tavernX = tavernX,
+                    tavernY = tavernY,
+                    speed = npcData.speed or 40
                 }
                 table.insert(self.npcs, npc)
             end
         end
     end
-    
+
     -- Create default NPCs if none loaded
     if #self.npcs == 0 then
         self:createDefaultNPCs()
     end
+
+    print("Loaded " .. #self.npcs .. " NPCs")
 end
 
 function Town:createDefaultNPCs()
@@ -929,48 +1372,107 @@ local function clamp(value, minValue, maxValue)
 end
 
 function Town:update(dt)
+    -- Update game clock
+    GameClock:update(dt)
+
     if self.cutscene.active then
         self:updateCutscene(dt)
         return
     end
-    
+
     if self.dialogue.active then
         self:updateDialogue(dt)
         return
     end
-    
-    -- Player movement
-    local moveX, moveY = 0, 0
+
+    -- Player movement with smooth acceleration (Zelda-like)
+    local inputX, inputY = 0, 0
     if love.keyboard.isDown("left") or love.keyboard.isDown("a") then
-        moveX = moveX - 1
-        self.player.direction = "left"
+        inputX = inputX - 1
     end
     if love.keyboard.isDown("right") or love.keyboard.isDown("d") then
-        moveX = moveX + 1
-        self.player.direction = "right"
+        inputX = inputX + 1
     end
     if love.keyboard.isDown("up") or love.keyboard.isDown("w") then
-        moveY = moveY - 1
-        self.player.direction = "up"
+        inputY = inputY - 1
     end
     if love.keyboard.isDown("down") or love.keyboard.isDown("s") then
-        moveY = moveY + 1
-        self.player.direction = "down"
+        inputY = inputY + 1
     end
 
-    self.player.isMoving = (moveX ~= 0 or moveY ~= 0)
-    
+    -- Normalize diagonal input
+    local inputLen = math.sqrt(inputX * inputX + inputY * inputY)
+    if inputLen > 0 then
+        inputX, inputY = inputX / inputLen, inputY / inputLen
+    end
+
+    local hasInput = (inputX ~= 0 or inputY ~= 0)
+
+    if hasInput then
+        -- Apply acceleration in input direction
+        self.player.vx = self.player.vx + inputX * self.player.accel * dt
+        self.player.vy = self.player.vy + inputY * self.player.accel * dt
+
+        -- Update facing direction based on strongest input
+        if math.abs(inputX) > math.abs(inputY) then
+            self.player.direction = inputX > 0 and "right" or "left"
+        else
+            self.player.direction = inputY > 0 and "down" or "up"
+        end
+    else
+        -- Apply friction when no input (smooth deceleration)
+        local speed = math.sqrt(self.player.vx * self.player.vx + self.player.vy * self.player.vy)
+        if speed > 0 then
+            local frictionForce = self.player.friction * dt
+            if frictionForce >= speed then
+                -- Stop completely
+                self.player.vx = 0
+                self.player.vy = 0
+            else
+                -- Reduce velocity proportionally
+                local ratio = (speed - frictionForce) / speed
+                self.player.vx = self.player.vx * ratio
+                self.player.vy = self.player.vy * ratio
+            end
+        end
+    end
+
+    -- Clamp to max speed
+    local speed = math.sqrt(self.player.vx * self.player.vx + self.player.vy * self.player.vy)
+    if speed > self.player.maxSpeed then
+        local ratio = self.player.maxSpeed / speed
+        self.player.vx = self.player.vx * ratio
+        self.player.vy = self.player.vy * ratio
+    end
+
+    -- Apply velocity to position
+    self.player.x = self.player.x + self.player.vx * dt
+    self.player.y = self.player.y + self.player.vy * dt
+
+    -- Update movement state (for animations)
+    self.player.isMoving = (math.abs(self.player.vx) > 5 or math.abs(self.player.vy) > 5)
+
+    -- Update animation timer
     if self.player.isMoving then
-        local length = math.sqrt(moveX * moveX + moveY * moveY)
-        moveX, moveY = moveX / length, moveY / length
-        self.player.x = self.player.x + moveX * self.player.speed * dt
-        self.player.y = self.player.y + moveY * self.player.speed * dt
+        self.player.animTimer = self.player.animTimer + dt * 8
+        self.player.animFrame = math.floor(self.player.animTimer) % 4
+    else
+        self.player.animTimer = 0
+        self.player.animFrame = 0
     end
 
     -- Clamp player to town bounds
     local half = self.player.size / 2
     self.player.x = clamp(self.player.x, half, self.town.width - half)
     self.player.y = clamp(self.player.y, half, self.town.height - half)
+
+    -- Stop velocity at bounds
+    if self.player.x <= half or self.player.x >= self.town.width - half then
+        self.player.vx = 0
+    end
+    if self.player.y <= half or self.player.y >= self.town.height - half then
+        self.player.vy = 0
+    end
 
     -- Update NPCs
     self:updateNPCs(dt)
@@ -981,20 +1483,75 @@ function Town:update(dt)
     -- Check for building interactions
     self:checkBuildingInteractions()
 
-    -- Camera follows player
+    -- Camera follows player with smooth lerp
     local screenW, screenH = love.graphics.getDimensions()
-    self.camera.x = clamp(self.player.x - screenW / 2, 0, self.town.width - screenW)
-    self.camera.y = clamp(self.player.y - screenH / 2, 0, self.town.height - screenH)
+    local targetCamX = clamp(self.player.x - screenW / 2, 0, math.max(0, self.town.width - screenW))
+    local targetCamY = clamp(self.player.y - screenH / 2, 0, math.max(0, self.town.height - screenH))
+
+    -- Smooth camera interpolation (lerp)
+    local camSpeed = 8  -- Higher = snappier camera
+    self.camera.x = self.camera.x + (targetCamX - self.camera.x) * camSpeed * dt
+    self.camera.y = self.camera.y + (targetCamY - self.camera.y) * camSpeed * dt
+
+    -- Snap to target if very close (prevents jittering)
+    if math.abs(self.camera.x - targetCamX) < 0.5 then self.camera.x = targetCamX end
+    if math.abs(self.camera.y - targetCamY) < 0.5 then self.camera.y = targetCamY end
 end
 
 function Town:updateNPCs(dt)
     for _, npc in ipairs(self.npcs) do
-        -- Simple NPC movement (can be expanded with pathfinding)
-        if npc.isMoving then
+        -- Check NPC schedule based on game clock
+        if npc.schedule and #npc.schedule > 0 then
+            local location, isSleeping = GameClock:getNPCLocation(npc)
+
+            -- Get target position based on schedule location
+            local targetX, targetY = npc.homeX or npc.x, npc.homeY or npc.y
+
+            if location == "home" then
+                targetX = npc.homeX or npc.x
+                targetY = npc.homeY or npc.y
+            elseif location == "work" then
+                targetX = npc.workX or npc.x
+                targetY = npc.workY or npc.y
+            elseif location == "market" then
+                -- Find market area
+                targetX = npc.marketX or (self.town.width / 2 + math.random(-100, 100))
+                targetY = npc.marketY or (self.town.height / 2 + math.random(-100, 100))
+            elseif location == "tavern" then
+                targetX = npc.tavernX or (self.town.width / 3 + math.random(-50, 50))
+                targetY = npc.tavernY or (self.town.height / 3 + math.random(-50, 50))
+            elseif location == "roam" then
+                -- Random wandering if not currently moving
+                if not npc.isMoving and math.random() < 0.01 then
+                    targetX = npc.x + math.random(-100, 100)
+                    targetY = npc.y + math.random(-100, 100)
+                    -- Clamp to town bounds
+                    targetX = math.max(50, math.min(self.town.width - 50, targetX))
+                    targetY = math.max(50, math.min(self.town.height - 50, targetY))
+                end
+            end
+
+            -- If sleeping, NPC doesn't move
+            if isSleeping then
+                npc.isMoving = false
+                npc.isSleeping = true
+            else
+                npc.isSleeping = false
+                -- Set target if changed
+                if math.abs(targetX - npc.targetX) > 5 or math.abs(targetY - npc.targetY) > 5 then
+                    npc.targetX = targetX
+                    npc.targetY = targetY
+                    npc.isMoving = true
+                end
+            end
+        end
+
+        -- Move NPC towards target
+        if npc.isMoving and not npc.isSleeping then
             local dx = npc.targetX - npc.x
             local dy = npc.targetY - npc.y
             local distance = math.sqrt(dx * dx + dy * dy)
-            
+
             if distance > 5 then
                 local moveX = dx / distance * npc.speed * dt
                 local moveY = dy / distance * npc.speed * dt
@@ -1146,6 +1703,66 @@ function Town:startCutscene(script)
     end
 end
 
+function Town:drawFountain(time)
+    local f = self.fountain
+    if not f then return end
+
+    local x, y = f.x, f.y
+    local radius = f.radius
+
+    -- Fountain base (stone circle)
+    Color.set(0.45, 0.42, 0.40)
+    love.graphics.circle("fill", x, y, radius + 8)
+
+    -- Inner rim
+    Color.set(0.55, 0.52, 0.48)
+    love.graphics.circle("fill", x, y, radius + 4)
+
+    -- Water pool
+    local waterPulse = math.sin(time * 2) * 0.05 + 0.95
+    Color.set(0.30 * waterPulse, 0.50 * waterPulse, 0.70 * waterPulse, 0.8)
+    love.graphics.circle("fill", x, y, radius)
+
+    -- Water ripples
+    for i = 1, 3 do
+        local rippleRadius = (radius * 0.3) + (((time * 30 + i * 20) % 60) / 60) * radius * 0.6
+        local alpha = 1 - (rippleRadius / radius)
+        Color.set(0.60, 0.75, 0.90, alpha * 0.3)
+        love.graphics.setLineWidth(1)
+        love.graphics.circle("line", x, y, rippleRadius)
+    end
+
+    -- Central pillar
+    Color.set(0.50, 0.48, 0.45)
+    love.graphics.rectangle("fill", x - 8, y - 30, 16, 30)
+
+    -- Pillar highlight
+    Color.set(0.60, 0.58, 0.55)
+    love.graphics.rectangle("fill", x - 8, y - 30, 4, 30)
+
+    -- Water spout (animated)
+    local spoutHeight = 20 + math.sin(time * 5) * 5
+    Color.set(0.50, 0.70, 0.90, 0.7)
+    love.graphics.polygon("fill",
+        x - 3, y - 30,
+        x + 3, y - 30,
+        x + 1, y - 30 - spoutHeight,
+        x - 1, y - 30 - spoutHeight
+    )
+
+    -- Water droplets falling
+    for i = 1, 8 do
+        local angle = (i / 8) * math.pi * 2 + time
+        local dropDist = radius * 0.6 + math.sin(time * 3 + i) * 10
+        local dropX = x + math.cos(angle) * dropDist
+        local dropY = y + math.sin(angle) * dropDist * 0.5 - 10
+        local dropAlpha = 0.5 + math.sin(time * 4 + i) * 0.3
+
+        Color.set(0.60, 0.80, 0.95, dropAlpha)
+        love.graphics.circle("fill", dropX, dropY, 2)
+    end
+end
+
 function Town:drawBuildings(screenW, screenH, time)
     if not self.buildings then return end
 
@@ -1286,10 +1903,21 @@ function Town:draw()
                         drawGrassTile(tx, ty, ts, col, row)
                     elseif tile == "path" then
                         drawPathTile(tx, ty, ts, col, row)
+                    elseif tile == "road" then
+                        drawRoadTile(tx, ty, ts, col, row)
+                    elseif tile == "plaza" then
+                        drawPlazaTile(tx, ty, ts, col, row)
+                    elseif tile == "cobble" then
+                        drawCobbleTile(tx, ty, ts, col, row)
+                    elseif tile == "garden" then
+                        drawGardenTile(tx, ty, ts, col, row)
                     elseif tile == "building" or tile == "building_floor" then
                         drawBuildingTile(tx, ty, ts, col, row)
-                    else -- market
+                    elseif tile == "market" then
                         drawMarketTile(tx, ty, ts, col, row)
+                    else
+                        -- Default to grass for unknown tiles
+                        drawGrassTile(tx, ty, ts, col, row)
                     end
                 end
             end
@@ -1298,6 +1926,11 @@ function Town:draw()
         -- Fallback: draw a simple background if tiles aren't loaded
         Color.set(0.3, 0.4, 0.3)
         love.graphics.rectangle("fill", 0, 0, self.town.width, self.town.height)
+    end
+
+    -- Draw fountain in center
+    if self.fountain then
+        self:drawFountain(time)
     end
 
     -- Draw buildings with doors
@@ -1342,6 +1975,22 @@ function Town:draw()
 
     love.graphics.pop()
 
+    -- Day/night ambient overlay
+    local screenW, screenH = love.graphics.getDimensions()
+    local ambient = GameClock:getInterpolatedAmbient()
+    if ambient[1] < 1 or ambient[2] < 1 or ambient[3] < 1 then
+        -- Calculate darkness overlay
+        local darkness = 1 - math.min(ambient[1], ambient[2], ambient[3])
+        if darkness > 0.1 then
+            -- Blue-tinted darkness for night
+            local r = 0.05 * (1 - ambient[1])
+            local g = 0.05 * (1 - ambient[2])
+            local b = 0.15 * (1 - ambient[3])
+            Color.set(r, g, b, darkness * 0.5)
+            love.graphics.rectangle("fill", 0, 0, screenW, screenH)
+        end
+    end
+
     -- Enhanced HUD
     self:drawHUD()
 
@@ -1361,16 +2010,16 @@ function Town:drawHUD()
 
     -- HUD background panel
     Color.set(0.08, 0.08, 0.15, 0.85)
-    love.graphics.rectangle("fill", 5, 5, 400, 55, 6, 6)
+    love.graphics.rectangle("fill", 5, 5, 480, 55, 6, 6)
 
     -- Panel border
     Color.set(0.35, 0.32, 0.45)
     love.graphics.setLineWidth(2)
-    love.graphics.rectangle("line", 5, 5, 400, 55, 6, 6)
+    love.graphics.rectangle("line", 5, 5, 480, 55, 6, 6)
 
     -- Inner highlight
     Color.set(0.45, 0.42, 0.55, 0.3)
-    love.graphics.rectangle("line", 7, 7, 396, 51, 5, 5)
+    love.graphics.rectangle("line", 7, 7, 476, 51, 5, 5)
 
     -- Town name with icon
     Color.set(0.65, 0.75, 0.95)
@@ -1388,13 +2037,33 @@ function Town:drawHUD()
     Color.set(0.95, 0.85, 0.55)
     love.graphics.print("Lv." .. self.hud.level, 280, 12)
 
-    -- Coordinates
+    -- Separator
+    Color.set(0.35, 0.32, 0.45)
+    love.graphics.rectangle("fill", 325, 10, 2, 20)
+
+    -- Game clock display
+    local periodName = GameClock:getPeriod()
+    local timeStr = GameClock:getTimeString()
+
+    -- Time-based color for period
+    local periodColors = {
+        Night = {0.4, 0.4, 0.7},
+        Dawn = {0.9, 0.7, 0.5},
+        Morning = {1.0, 0.95, 0.7},
+        Afternoon = {1.0, 1.0, 0.9},
+        Evening = {0.95, 0.75, 0.5},
+        Dusk = {0.7, 0.5, 0.7}
+    }
+    local periodColor = periodColors[periodName] or {0.8, 0.8, 0.8}
+
+    Color.set(periodColor[1], periodColor[2], periodColor[3])
+    love.graphics.print(timeStr, 340, 12)
     Color.set(0.6, 0.6, 0.7)
-    love.graphics.print(string.format("(%.0f, %.0f)", self.player.x, self.player.y), 330, 12)
+    love.graphics.print(periodName, 420, 12)
 
     -- Controls hint
     Color.set(0.5, 0.5, 0.6)
-    love.graphics.print("WASD: Move  |  SPACE: Talk  |  ESC: World Map", 15, 38)
+    love.graphics.print("WASD: Move  |  SPACE: Talk/Enter  |  ESC: World Map", 15, 38)
 end
 
 function Town:drawInteractionPrompt()

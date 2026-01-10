@@ -99,6 +99,37 @@ local palettes = {
         light = {0.68, 0.58, 0.42},
         pebble = {0.52, 0.50, 0.48},
     },
+    -- Deep water - ocean depths
+    deep_water = {
+        abyss = {0.02, 0.06, 0.18},
+        deep = {0.05, 0.12, 0.28},
+        mid = {0.08, 0.18, 0.38},
+        caustic = {0.12, 0.25, 0.48},
+    },
+    -- Mountain - rocky peaks
+    mountain = {
+        snow = {0.92, 0.94, 0.98},
+        snow_shadow = {0.75, 0.80, 0.88},
+        rock_light = {0.58, 0.55, 0.52},
+        rock_mid = {0.42, 0.40, 0.38},
+        rock_dark = {0.28, 0.26, 0.25},
+        rock_shadow = {0.18, 0.16, 0.15},
+    },
+    -- Hills - elevated terrain
+    hills = {
+        grass_light = {0.35, 0.58, 0.32},
+        grass_mid = {0.25, 0.48, 0.25},
+        grass_dark = {0.18, 0.38, 0.18},
+        shadow = {0.12, 0.28, 0.12},
+    },
+    -- Highway - paved roads
+    highway = {
+        asphalt = {0.25, 0.25, 0.28},
+        asphalt_light = {0.32, 0.32, 0.35},
+        line_yellow = {0.90, 0.80, 0.25},
+        line_white = {0.92, 0.92, 0.95},
+        edge = {0.18, 0.18, 0.20},
+    },
 }
 
 -- Helper functions
@@ -140,6 +171,21 @@ function Sprites:init()
     self.images.water2 = self:createWaterTile(2)
     self.images.sand = self:createSandTile(1)
     self.images.sand2 = self:createSandTile(2)
+
+    -- Enhanced terrain tiles
+    self.images.deep_water = self:createDeepWaterTile()
+    self.images.mountain = self:createMountainTile()
+    self.images.hills = self:createHillsTile()
+    self.images.highway = self:createHighwayTile()
+    self.images.highway_h = self:createHighwayTile("horizontal")
+    self.images.highway_v = self:createHighwayTile("vertical")
+
+    -- Vehicle sprites
+    self.images.car = self:createCarSprite()
+    self.images.car_right = self:createCarSprite("right")
+    self.images.car_left = self:createCarSprite("left")
+    self.images.car_up = self:createCarSprite("up")
+    self.images.car_down = self:createCarSprite("down")
 
     -- Level tiles
     self.images.stone = self:createStoneTile()
@@ -332,6 +378,367 @@ function Sprites:createSandTile(variant)
             local offset = ((y / 4) % 2) * 2
             setPixel(data, x + offset, y, p.dark)
         end
+    end
+
+    return love.graphics.newImage(data)
+end
+
+-- DEEP WATER TILES (Ocean) --
+function Sprites:createDeepWaterTile()
+    local data = love.image.newImageData(16, 16)
+    local p = palettes.deep_water
+    local seed = 250
+
+    for y = 0, 15 do
+        for x = 0, 15 do
+            -- Deep ocean wave pattern
+            local wave = math.sin((x * 0.4 + y * 0.3 + seed * 0.1) * 0.8) * 0.5 + 0.5
+            local h = hash(x, y, seed) * 0.3 + wave * 0.7
+            local color
+
+            if h < 0.3 then
+                color = p.abyss
+            elseif h < 0.55 then
+                color = p.deep
+            elseif h < 0.8 then
+                color = p.mid
+            else
+                color = p.caustic
+            end
+
+            setPixel(data, x, y, color)
+        end
+    end
+
+    -- Deep water caustic patterns (light rays)
+    for i = 1, 3 do
+        local cx = math.floor(hash(i, 0, seed + 50) * 12) + 2
+        local cy = math.floor(hash(0, i, seed + 50) * 12) + 2
+        setPixel(data, cx, cy, p.caustic)
+        if hash(i, i, seed) > 0.5 then
+            setPixel(data, cx + 1, cy, p.mid)
+        end
+    end
+
+    return love.graphics.newImage(data)
+end
+
+-- MOUNTAIN TILES (3D effect with shadows) --
+function Sprites:createMountainTile()
+    local data = love.image.newImageData(16, 16)
+    local p = palettes.mountain
+    local seed = 350
+
+    -- Draw mountain peak with 3D shading
+    for y = 0, 15 do
+        for x = 0, 15 do
+            local h = hash(x, y, seed)
+
+            -- Mountain shape (peak in center-top)
+            local peakX, peakY = 8, 3
+            local dist = math.sqrt((x - peakX)^2 + (y - peakY)^2)
+            local slope = y - peakY
+
+            local color
+            if slope < 0 then
+                -- Above peak - shouldn't happen much
+                color = p.rock_shadow
+            elseif slope < 4 then
+                -- Snow cap
+                if x < peakX then
+                    color = p.snow_shadow
+                else
+                    color = p.snow
+                end
+            elseif slope < 8 then
+                -- Upper rock face
+                if x < peakX - 1 then
+                    color = p.rock_shadow
+                elseif x < peakX then
+                    color = p.rock_dark
+                elseif x < peakX + 2 then
+                    color = p.rock_mid
+                else
+                    color = p.rock_light
+                end
+            else
+                -- Lower rock/base
+                if x < peakX - 2 then
+                    color = p.rock_shadow
+                elseif x < peakX then
+                    color = p.rock_dark
+                else
+                    color = lerp(p.rock_mid, p.rock_light, h * 0.5)
+                end
+            end
+
+            -- Add some noise variation
+            if h > 0.85 and slope > 4 then
+                color = p.rock_light
+            elseif h < 0.15 and slope > 4 then
+                color = p.rock_shadow
+            end
+
+            setPixel(data, x, y, color)
+        end
+    end
+
+    -- Snow highlights
+    setPixel(data, 9, 4, {0.98, 0.99, 1.0})
+    setPixel(data, 8, 3, {0.98, 0.99, 1.0})
+
+    return love.graphics.newImage(data)
+end
+
+-- HILLS TILES (Elevated terrain) --
+function Sprites:createHillsTile()
+    local data = love.image.newImageData(16, 16)
+    local p = palettes.hills
+    local seed = 450
+
+    for y = 0, 15 do
+        for x = 0, 15 do
+            local h = hash(x, y, seed)
+
+            -- Hill shape - lighter at top, darker at bottom
+            local elevation = 1 - (y / 16)
+            local combined = h * 0.4 + elevation * 0.6
+
+            local color
+            if combined > 0.75 then
+                color = p.grass_light
+            elseif combined > 0.5 then
+                color = p.grass_mid
+            elseif combined > 0.25 then
+                color = p.grass_dark
+            else
+                color = p.shadow
+            end
+
+            -- Add dithering for smooth gradient
+            if dither(x, y, combined * 0.4) then
+                color = lerp(color, p.grass_mid, 0.3)
+            end
+
+            setPixel(data, x, y, color)
+        end
+    end
+
+    -- Hill contour lines for depth
+    for x = 0, 15 do
+        if x % 4 == 0 then
+            setPixel(data, x, 12, p.shadow)
+        end
+    end
+
+    -- Grass detail
+    setPixel(data, 5, 3, p.grass_light)
+    setPixel(data, 10, 5, p.grass_light)
+    setPixel(data, 3, 8, p.grass_mid)
+
+    return love.graphics.newImage(data)
+end
+
+-- HIGHWAY TILES --
+function Sprites:createHighwayTile(direction)
+    local data = love.image.newImageData(16, 16)
+    local p = palettes.highway
+    direction = direction or "horizontal"
+
+    -- Base asphalt
+    for y = 0, 15 do
+        for x = 0, 15 do
+            local h = hash(x, y, 550)
+            local color = h < 0.7 and p.asphalt or p.asphalt_light
+            setPixel(data, x, y, color)
+        end
+    end
+
+    if direction == "horizontal" then
+        -- Road edges
+        for x = 0, 15 do
+            setPixel(data, x, 0, p.edge)
+            setPixel(data, x, 1, p.edge)
+            setPixel(data, x, 14, p.edge)
+            setPixel(data, x, 15, p.edge)
+        end
+
+        -- Center line (dashed yellow)
+        for x = 0, 15, 4 do
+            setPixel(data, x, 7, p.line_yellow)
+            setPixel(data, x + 1, 7, p.line_yellow)
+            setPixel(data, x, 8, p.line_yellow)
+            setPixel(data, x + 1, 8, p.line_yellow)
+        end
+
+        -- Edge lines (white)
+        for x = 0, 15 do
+            setPixel(data, x, 2, p.line_white)
+            setPixel(data, x, 13, p.line_white)
+        end
+    elseif direction == "vertical" then
+        -- Road edges
+        for y = 0, 15 do
+            setPixel(data, 0, y, p.edge)
+            setPixel(data, 1, y, p.edge)
+            setPixel(data, 14, y, p.edge)
+            setPixel(data, 15, y, p.edge)
+        end
+
+        -- Center line (dashed yellow)
+        for y = 0, 15, 4 do
+            setPixel(data, 7, y, p.line_yellow)
+            setPixel(data, 7, y + 1, p.line_yellow)
+            setPixel(data, 8, y, p.line_yellow)
+            setPixel(data, 8, y + 1, p.line_yellow)
+        end
+
+        -- Edge lines (white)
+        for y = 0, 15 do
+            setPixel(data, 2, y, p.line_white)
+            setPixel(data, 13, y, p.line_white)
+        end
+    end
+
+    return love.graphics.newImage(data)
+end
+
+-- CAR SPRITE --
+function Sprites:createCarSprite(direction)
+    direction = direction or "right"
+    local data = love.image.newImageData(16, 16)
+
+    -- Transparent background
+    for y = 0, 15 do
+        for x = 0, 15 do
+            data:setPixel(x, y, 0, 0, 0, 0)
+        end
+    end
+
+    local body = {0.85, 0.25, 0.25}      -- Red car body
+    local body_dark = {0.65, 0.18, 0.18}
+    local body_light = {0.95, 0.40, 0.40}
+    local window = {0.45, 0.65, 0.85}
+    local window_light = {0.65, 0.82, 0.95}
+    local wheel = {0.15, 0.15, 0.18}
+    local chrome = {0.75, 0.78, 0.82}
+    local outline = {0.10, 0.08, 0.12}
+
+    if direction == "right" or direction == "left" then
+        -- Side view car
+        local flip = direction == "left" and -1 or 1
+
+        -- Shadow
+        for x = 3, 12 do
+            setPixel(data, x, 14, {0, 0, 0, 0.3})
+        end
+
+        -- Wheels
+        for dy = 0, 2 do
+            for dx = 0, 2 do
+                setPixel(data, 3 + dx, 11 + dy, wheel)
+                setPixel(data, 10 + dx, 11 + dy, wheel)
+            end
+        end
+        -- Wheel highlights
+        setPixel(data, 4, 11, chrome)
+        setPixel(data, 11, 11, chrome)
+
+        -- Car body (lower)
+        for y = 9, 12 do
+            for x = 2, 13 do
+                local color = y > 10 and body_dark or body
+                setPixel(data, x, y, color)
+            end
+        end
+
+        -- Car body (cabin)
+        for y = 5, 9 do
+            for x = 4, 11 do
+                setPixel(data, x, y, body)
+            end
+        end
+
+        -- Roof
+        for x = 5, 10 do
+            setPixel(data, x, 4, body)
+            setPixel(data, x, 5, body_light)
+        end
+
+        -- Windows
+        for y = 6, 8 do
+            setPixel(data, 5, y, window)
+            setPixel(data, 6, y, window_light)
+            setPixel(data, 9, y, window)
+            setPixel(data, 10, y, window_light)
+        end
+
+        -- Headlight/taillight
+        setPixel(data, 2, 10, chrome)
+        setPixel(data, 13, 10, {0.95, 0.35, 0.30})
+
+        -- Outline
+        for x = 2, 13 do
+            setPixel(data, x, 3, outline)
+        end
+
+    elseif direction == "up" or direction == "down" then
+        -- Top-down view car
+        local flip = direction == "up" and -1 or 1
+
+        -- Shadow
+        for y = 3, 12 do
+            setPixel(data, 14, y, {0, 0, 0, 0.3})
+        end
+
+        -- Car body outline
+        for y = 2, 13 do
+            for x = 4, 11 do
+                setPixel(data, x, y, body)
+            end
+        end
+
+        -- Front/back curves
+        for x = 5, 10 do
+            setPixel(data, x, 1, body)
+            setPixel(data, x, 14, body_dark)
+        end
+
+        -- Roof/hood shading
+        for y = 4, 11 do
+            setPixel(data, 5, y, body_light)
+            setPixel(data, 10, y, body_dark)
+        end
+
+        -- Windshield
+        for x = 5, 10 do
+            setPixel(data, x, 4, window)
+            setPixel(data, x, 5, window_light)
+        end
+
+        -- Rear window
+        for x = 5, 10 do
+            setPixel(data, x, 10, window)
+            setPixel(data, x, 11, window)
+        end
+
+        -- Wheels (visible from top)
+        setPixel(data, 4, 3, wheel)
+        setPixel(data, 4, 4, wheel)
+        setPixel(data, 11, 3, wheel)
+        setPixel(data, 11, 4, wheel)
+        setPixel(data, 4, 11, wheel)
+        setPixel(data, 4, 12, wheel)
+        setPixel(data, 11, 11, wheel)
+        setPixel(data, 11, 12, wheel)
+
+        -- Headlights
+        setPixel(data, 5, 2, chrome)
+        setPixel(data, 10, 2, chrome)
+
+        -- Taillights
+        setPixel(data, 5, 13, {0.95, 0.25, 0.25})
+        setPixel(data, 10, 13, {0.95, 0.25, 0.25})
     end
 
     return love.graphics.newImage(data)
@@ -1126,11 +1533,29 @@ function Sprites:getTile(name, x, y)
         else return self.images.grass3 end
     elseif name == "water" then
         return variant % 2 == 0 and self.images.water or self.images.water2
+    elseif name == "deep_water" then
+        return self.images.deep_water
     elseif name == "sand" then
         return variant % 2 == 0 and self.images.sand or self.images.sand2
+    elseif name == "mountain" then
+        return self.images.mountain
+    elseif name == "hills" then
+        return self.images.hills
+    elseif name == "highway" or name == "highway_h" then
+        return self.images.highway_h
+    elseif name == "highway_v" then
+        return self.images.highway_v
+    elseif name == "forest" then
+        return self.images.tree
     else
         return self.images[name]
     end
+end
+
+-- Get car sprite based on direction
+function Sprites:getCarSprite(direction)
+    local key = "car_" .. (direction or "right")
+    return self.images[key] or self.images.car
 end
 
 function Sprites:getPOIMarker(levelType)
