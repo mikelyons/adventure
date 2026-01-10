@@ -2,9 +2,11 @@ local MainMenu = {}
 local Color = require("color")
 
 function MainMenu:load()
-    self.options = {"New Game", "Continue", "Options", "Quit"}
+    self.options = {"Continue", "New Game", "Options", "Quit"}
     self.selected = 1
     self.selectionTime = 0
+    self.hoveredOption = nil
+    self.clickableAreas = {}
 end
 
 function MainMenu:update(dt)
@@ -88,21 +90,35 @@ function MainMenu:draw()
     local menuStartY = screenH * 0.45
     local menuSpacing = 55
 
+    -- Clear clickable areas
+    self.clickableAreas = {}
+
     for i, option in ipairs(self.options) do
         local optY = menuStartY + (i - 1) * menuSpacing
         local isSelected = (i == self.selected)
+        local isHovered = (i == self.hoveredOption)
 
         -- Selection animation
-        local selectPulse = isSelected and (math.sin(self.selectionTime * 4) * 0.1 + 0.9) or 0.6
+        local selectPulse = (isSelected or isHovered) and (math.sin(self.selectionTime * 4) * 0.1 + 0.9) or 0.6
         local xOffset = isSelected and (math.sin(self.selectionTime * 3) * 3) or 0
 
-        -- Option background for selected
-        if isSelected then
-            local bgW = 220
-            local bgX = (screenW - bgW) / 2
+        local bgW = 220
+        local bgX = (screenW - bgW) / 2
 
+        -- Store clickable area
+        table.insert(self.clickableAreas, {
+            index = i,
+            x = bgX,
+            y = optY - 5,
+            w = bgW,
+            h = 36
+        })
+
+        -- Option background for selected or hovered
+        if isSelected or isHovered then
             -- Glow behind
-            Color.set(0.35, 0.50, 0.75, 0.3)
+            local glowColor = isSelected and {0.35, 0.50, 0.75} or {0.30, 0.45, 0.65}
+            Color.set(glowColor[1], glowColor[2], glowColor[3], 0.3)
             love.graphics.rectangle("fill", bgX - 10, optY - 8, bgW + 20, 42, 8, 8)
 
             -- Background
@@ -110,27 +126,30 @@ function MainMenu:draw()
             love.graphics.rectangle("fill", bgX, optY - 5, bgW, 36, 6, 6)
 
             -- Border
-            Color.set(0.50, 0.65, 0.90, selectPulse)
+            local borderColor = isSelected and {0.50, 0.65, 0.90} or {0.45, 0.60, 0.80}
+            Color.set(borderColor[1], borderColor[2], borderColor[3], selectPulse)
             love.graphics.setLineWidth(2)
             love.graphics.rectangle("line", bgX, optY - 5, bgW, 36, 6, 6)
 
-            -- Arrow indicators
-            Color.set(0.70, 0.80, 1, selectPulse)
-            local arrowX = bgX - 20 + xOffset
-            love.graphics.polygon("fill",
-                arrowX, optY + 13,
-                arrowX + 10, optY + 8,
-                arrowX + 10, optY + 18
-            )
-            love.graphics.polygon("fill",
-                bgX + bgW + 20 - xOffset, optY + 13,
-                bgX + bgW + 10 - xOffset, optY + 8,
-                bgX + bgW + 10 - xOffset, optY + 18
-            )
+            -- Arrow indicators (only for selected)
+            if isSelected then
+                Color.set(0.70, 0.80, 1, selectPulse)
+                local arrowX = bgX - 20 + xOffset
+                love.graphics.polygon("fill",
+                    arrowX, optY + 13,
+                    arrowX + 10, optY + 8,
+                    arrowX + 10, optY + 18
+                )
+                love.graphics.polygon("fill",
+                    bgX + bgW + 20 - xOffset, optY + 13,
+                    bgX + bgW + 10 - xOffset, optY + 8,
+                    bgX + bgW + 10 - xOffset, optY + 18
+                )
+            end
         end
 
         -- Option text
-        if isSelected then
+        if isSelected or isHovered then
             Color.set(0.95, 0.95, 1)
         else
             Color.set(0.55, 0.60, 0.70)
@@ -192,15 +211,44 @@ function MainMenu:keypressed(key)
         end
         self.selectionTime = 0
     elseif key == "return" or key == "kpenter" then
-        if self.selected == 1 then
-            -- Start new game
-            Gamestate:push(require "states.newgame")
-        elseif self.selected == 2 then
-            Gamestate:push(require "states.loadsave")
-        elseif self.selected == 3 then
-            -- Go to options
-        elseif self.selected == 4 then
-            love.event.quit()
+        self:selectOption(self.selected)
+    end
+end
+
+function MainMenu:selectOption(index)
+    if index == 1 then
+        -- Continue (load save)
+        Gamestate:push(require "states.loadsave")
+    elseif index == 2 then
+        -- Start new game
+        Gamestate:push(require "states.newgame")
+    elseif index == 3 then
+        -- Go to options
+    elseif index == 4 then
+        love.event.quit()
+    end
+end
+
+function MainMenu:mousemoved(x, y)
+    self.hoveredOption = nil
+
+    -- Check if mouse is over any clickable area
+    for _, area in ipairs(self.clickableAreas) do
+        if x >= area.x and x <= area.x + area.w and y >= area.y and y <= area.y + area.h then
+            self.hoveredOption = area.index
+        end
+    end
+end
+
+function MainMenu:mousepressed(x, y, button)
+    if button ~= 1 then return end  -- Only left click
+
+    -- Check if mouse is over any clickable area
+    for _, area in ipairs(self.clickableAreas) do
+        if x >= area.x and x <= area.x + area.w and y >= area.y and y <= area.y + area.h then
+            self.selected = area.index
+            self:selectOption(area.index)
+            return
         end
     end
 end

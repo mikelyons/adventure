@@ -3,6 +3,10 @@ ControlsPanel = require "controlspanel"
 
 function love.load()
     love.filesystem.setIdentity("adventure")
+
+    -- Set point filter for crisp pixel art (no blurring)
+    love.graphics.setDefaultFilter("nearest", "nearest", 1)
+
     Gamestate:push(require "states.splash")
 end
 
@@ -31,6 +35,24 @@ function love.keypressed(key)
     end
 
     Gamestate:keypressed(key)
+end
+
+function love.mousemoved(x, y, dx, dy)
+    -- Don't pass mouse input to game if controls panel is open
+    if ControlsPanel:isVisible() then
+        return
+    end
+
+    Gamestate:mousemoved(x, y, dx, dy)
+end
+
+function love.mousepressed(x, y, button)
+    -- Don't pass mouse input to game if controls panel is open
+    if ControlsPanel:isVisible() then
+        return
+    end
+
+    Gamestate:mousepressed(x, y, button)
 end
 
 function love.quit()

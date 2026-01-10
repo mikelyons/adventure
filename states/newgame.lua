@@ -7,6 +7,8 @@ function NewGame:load()
     self.inputMode = true
     self.errorMessage = ""
     self.confirmCreate = false
+    self.hoveredButton = nil
+    self.clickableAreas = {}
 end
 
 function NewGame:update(dt)
@@ -141,6 +143,9 @@ function NewGame:draw()
         love.graphics.printf(self.errorMessage, panelX, panelY + 237, panelW, "center")
     end
 
+    -- Clear clickable areas
+    self.clickableAreas = {}
+
     -- Instructions/confirmation
     local instructY = panelY + 280
     if not self.confirmCreate then
@@ -150,26 +155,50 @@ function NewGame:draw()
 
         -- ENTER button
         local enterX = panelX + panelW / 2 - 110
-        Color.set(0.25, 0.35, 0.45)
+        local isEnterHovered = (self.hoveredButton == "enter")
+        local enterBg = isEnterHovered and {0.30, 0.42, 0.55} or {0.25, 0.35, 0.45}
+        Color.set(enterBg[1], enterBg[2], enterBg[3])
         love.graphics.rectangle("fill", enterX, instructY + 22, 60, 26, 4, 4)
-        Color.set(0.55, 0.70, 0.85)
-        love.graphics.setLineWidth(1)
+        local enterBorder = isEnterHovered and {0.65, 0.80, 0.95} or {0.55, 0.70, 0.85}
+        Color.set(enterBorder[1], enterBorder[2], enterBorder[3])
+        love.graphics.setLineWidth(isEnterHovered and 2 or 1)
         love.graphics.rectangle("line", enterX, instructY + 22, 60, 26, 4, 4)
         Color.set(0.90, 0.95, 1)
         love.graphics.print("ENTER", enterX + 8, instructY + 27)
+
+        -- Store clickable area
+        table.insert(self.clickableAreas, {
+            type = "enter",
+            x = enterX,
+            y = instructY + 22,
+            w = 60,
+            h = 26
+        })
 
         Color.set(0.50, 0.60, 0.70)
         love.graphics.print("to create,", enterX + 68, instructY + 27)
 
         -- ESC button
         local escX = enterX + 145
-        Color.set(0.35, 0.25, 0.25)
+        local isEscHovered = (self.hoveredButton == "esc")
+        local escBg = isEscHovered and {0.45, 0.32, 0.32} or {0.35, 0.25, 0.25}
+        Color.set(escBg[1], escBg[2], escBg[3])
         love.graphics.rectangle("fill", escX, instructY + 22, 45, 26, 4, 4)
-        Color.set(0.75, 0.55, 0.55)
-        love.graphics.setLineWidth(1)
+        local escBorder = isEscHovered and {0.85, 0.65, 0.65} or {0.75, 0.55, 0.55}
+        Color.set(escBorder[1], escBorder[2], escBorder[3])
+        love.graphics.setLineWidth(isEscHovered and 2 or 1)
         love.graphics.rectangle("line", escX, instructY + 22, 45, 26, 4, 4)
         Color.set(1, 0.85, 0.85)
         love.graphics.print("ESC", escX + 10, instructY + 27)
+
+        -- Store clickable area
+        table.insert(self.clickableAreas, {
+            type = "esc",
+            x = escX,
+            y = instructY + 22,
+            w = 45,
+            h = 26
+        })
 
         Color.set(0.50, 0.60, 0.70)
         love.graphics.print("to go back", escX + 52, instructY + 27)
@@ -186,26 +215,50 @@ function NewGame:draw()
 
         -- Y button
         local yX = panelX + panelW / 2 - 80
-        Color.set(0.25, 0.40, 0.30)
+        local isYHovered = (self.hoveredButton == "y")
+        local yBg = isYHovered and {0.32, 0.50, 0.38} or {0.25, 0.40, 0.30}
+        Color.set(yBg[1], yBg[2], yBg[3])
         love.graphics.rectangle("fill", yX, instructY + 28, 50, 26, 4, 4)
-        Color.set(0.55, 0.85, 0.60)
-        love.graphics.setLineWidth(1)
+        local yBorder = isYHovered and {0.65, 0.95, 0.70} or {0.55, 0.85, 0.60}
+        Color.set(yBorder[1], yBorder[2], yBorder[3])
+        love.graphics.setLineWidth(isYHovered and 2 or 1)
         love.graphics.rectangle("line", yX, instructY + 28, 50, 26, 4, 4)
         Color.set(0.85, 1, 0.85)
         love.graphics.print("Y", yX + 20, instructY + 33)
+
+        -- Store clickable area
+        table.insert(self.clickableAreas, {
+            type = "y",
+            x = yX,
+            y = instructY + 28,
+            w = 50,
+            h = 26
+        })
 
         Color.set(0.65, 0.75, 0.65)
         love.graphics.print("Yes", yX + 55, instructY + 33)
 
         -- N button
         local nX = yX + 100
-        Color.set(0.40, 0.28, 0.28)
+        local isNHovered = (self.hoveredButton == "n")
+        local nBg = isNHovered and {0.50, 0.35, 0.35} or {0.40, 0.28, 0.28}
+        Color.set(nBg[1], nBg[2], nBg[3])
         love.graphics.rectangle("fill", nX, instructY + 28, 50, 26, 4, 4)
-        Color.set(0.85, 0.55, 0.55)
-        love.graphics.setLineWidth(1)
+        local nBorder = isNHovered and {0.95, 0.65, 0.65} or {0.85, 0.55, 0.55}
+        Color.set(nBorder[1], nBorder[2], nBorder[3])
+        love.graphics.setLineWidth(isNHovered and 2 or 1)
         love.graphics.rectangle("line", nX, instructY + 28, 50, 26, 4, 4)
         Color.set(1, 0.85, 0.85)
         love.graphics.print("N", nX + 20, instructY + 33)
+
+        -- Store clickable area
+        table.insert(self.clickableAreas, {
+            type = "n",
+            x = nX,
+            y = instructY + 28,
+            w = 50,
+            h = 26
+        })
 
         Color.set(0.75, 0.60, 0.60)
         love.graphics.print("No", nX + 55, instructY + 33)
@@ -254,11 +307,13 @@ function NewGame:keypressed(key)
 end
 
 function NewGame:createSaveFile()
+    print("[NewGame] Starting createSaveFile")
     -- Generate a safe directory name from character name
     local safeDirName = string.gsub(self.characterName, "[^%w%s]", "")
     safeDirName = string.gsub(safeDirName, "%s+", "_")
     local saveDir = "saves/" .. safeDirName
-    
+
+    print("[NewGame] Creating save directory: " .. saveDir)
     -- Create save directory
     local success = love.filesystem.createDirectory(saveDir)
     if not success then
@@ -266,7 +321,8 @@ function NewGame:createSaveFile()
         self.confirmCreate = false
         return
     end
-    
+
+    print("[NewGame] Creating stats data")
     -- Create stats file
     local statsData = {
         characterName = self.characterName,
@@ -278,14 +334,15 @@ function NewGame:createSaveFile()
         pointsOfInterest = 0,
         totalSaves = 0
     }
-    
+
     local statsSuccess = love.filesystem.write(saveDir .. "/stats.lua", self:serializeDataToFile(statsData))
     if not statsSuccess then
         self.errorMessage = "Failed to create stats file"
         self.confirmCreate = false
         return
     end
-    
+
+    print("[NewGame] Creating options data")
     -- Create options file
     local optionsData = {
         musicVolume = 0.7,
@@ -294,36 +351,42 @@ function NewGame:createSaveFile()
         vsync = true,
         language = "en"
     }
-    
+
     local optionsSuccess = love.filesystem.write(saveDir .. "/options.lua", self:serializeDataToFile(optionsData))
     if not optionsSuccess then
         self.errorMessage = "Failed to create options file"
         self.confirmCreate = false
         return
     end
-    
+
+    print("[NewGame] Generating world data")
     -- Create initial world data
     local worldData = self:generateWorldData()
+    print("[NewGame] Writing world data to file")
     local worldSuccess = love.filesystem.write(saveDir .. "/world.lua", self:serializeDataToFile(worldData))
     if not worldSuccess then
         self.errorMessage = "Failed to create world file"
         self.confirmCreate = false
         return
     end
-    
+
+    print("[NewGame] Generating town data")
     -- Create initial town data
     local townData = self:generateTownData()
+    print("[NewGame] Writing town data to file")
     local townSuccess = love.filesystem.write(saveDir .. "/town.lua", self:serializeDataToFile(townData))
     if not townSuccess then
         self.errorMessage = "Failed to create town file"
         self.confirmCreate = false
         return
     end
-    
-    print("Save directory created: " .. saveDir)
-    
+
+    print("[NewGame] Save directory created: " .. saveDir)
+
+    print("[NewGame] Loading worldmap state")
     -- Start the game with this save data
     local worldmap = require "states.worldmap"
+    print("[NewGame] Creating new state table")
     local newState = {}
     for k, v in pairs(worldmap) do newState[k] = v end
     newState.saveDir = saveDir
@@ -331,7 +394,9 @@ function NewGame:createSaveFile()
     newState.worldData = worldData
     newState.townData = townData
     newState.optionsData = optionsData
+    print("[NewGame] Pushing worldmap state to gamestate")
     Gamestate:push(newState)
+    print("[NewGame] Worldmap state pushed successfully")
 end
 
 function NewGame:serializeData(data, indent)
@@ -377,96 +442,18 @@ function NewGame:generateWorldData()
     -- Set the random seed for this world
     love.math.setRandomSeed(seed)
     
-    -- Generate world parameters
+    -- Generate world parameters (size comes from WorldGen CONFIG)
+    local WorldGen = require("worldgen")
     local worldData = {
         seed = seed,
-        tileSize = 32,
-        cols = 100,
-        rows = 100,
+        tileSize = WorldGen.CONFIG.tileSize,
+        cols = WorldGen.CONFIG.worldCols,
+        rows = WorldGen.CONFIG.worldRows,
         scale = 0.08,
         playerStartX = 200,
         playerStartY = 200,
-        pointsOfInterest = {
-            {
-                x = 400,
-                y = 300,
-                radius = 20,
-                name = "Ancient Ruins",
-                message = "You discover the remains of an ancient civilization. The weathered stones tell stories of a time long forgotten.",
-                discovered = false,
-                color = {0.8, 0.6, 0.2},
-                levelType = "ruins",
-                levelSeed = seed + 1,
-                visited = false
-            },
-            {
-                x = 800,
-                y = 150,
-                radius = 18,
-                name = "Crystal Cave",
-                message = "A mysterious cave entrance glows with an ethereal light. Strange crystals line the walls.",
-                discovered = false,
-                color = {0.4, 0.8, 1.0},
-                levelType = "cave",
-                levelSeed = seed + 2,
-                visited = false
-            },
-            {
-                x = 1200,
-                y = 600,
-                radius = 25,
-                name = "Sacred Grove",
-                message = "A peaceful grove of ancient trees. The air here feels charged with magical energy.",
-                discovered = false,
-                color = {0.2, 0.8, 0.3},
-                levelType = "forest",
-                levelSeed = seed + 3,
-                visited = false
-            },
-            {
-                x = 600,
-                y = 800,
-                radius = 22,
-                name = "Desert Oasis",
-                message = "A rare oasis in the vast desert. Clear water flows from a hidden spring.",
-                discovered = false,
-                color = {0.9, 0.9, 0.5},
-                levelType = "oasis",
-                levelSeed = seed + 4,
-                visited = false
-            },
-            {
-                x = 1000,
-                y = 400,
-                radius = 20,
-                name = "Mystic Portal",
-                message = "A swirling portal of unknown origin. It hums with arcane power.",
-                discovered = false,
-                color = {0.8, 0.2, 0.8},
-                levelType = "portal",
-                levelSeed = seed + 5,
-                visited = false
-            },
-            {
-                x = 100,
-                y = 100,
-                radius = 15,
-                name = "Rivertown",
-                message = "You see a bustling town to the north. It seems to be a good place to rest and gather supplies.",
-                discovered = false,
-                color = {0.4, 0.8, 1.0},
-                levelType = "town",
-                levelSeed = seed + 6,
-                visited = false
-            }
-        }
+        -- POIs will be generated by WorldGen, not hardcoded here
     }
-    
-    -- Randomize POI positions slightly for uniqueness
-    for _, poi in ipairs(worldData.pointsOfInterest) do
-        poi.x = poi.x + love.math.random(-100, 100)
-        poi.y = poi.y + love.math.random(-100, 100)
-    end
     
     return worldData
 end
@@ -478,10 +465,10 @@ function NewGame:generateTownData()
         seed = seed + string.byte(self.characterName, i) * 2
     end
     seed = seed + os.time() * 3
-    
+
     -- Set the random seed for this town
     love.math.setRandomSeed(seed)
-    
+
     -- Generate town parameters
     local townData = {
         seed = seed,
@@ -536,14 +523,54 @@ function NewGame:generateTownData()
             -- Town events and cutscenes can be added here
         }
     }
-    
+
     -- Randomize NPC positions slightly for uniqueness
     for _, npc in ipairs(townData.npcs) do
         npc.x = npc.x + love.math.random(-50, 50)
         npc.y = npc.y + love.math.random(-50, 50)
     end
-    
+
     return townData
+end
+
+function NewGame:mousemoved(x, y)
+    self.hoveredButton = nil
+
+    -- Check if mouse is over any clickable area
+    for _, area in ipairs(self.clickableAreas) do
+        if x >= area.x and x <= area.x + area.w and y >= area.y and y <= area.y + area.h then
+            self.hoveredButton = area.type
+        end
+    end
+end
+
+function NewGame:mousepressed(x, y, button)
+    if button ~= 1 then return end  -- Only left click
+
+    -- Check if mouse is over any clickable area
+    for _, area in ipairs(self.clickableAreas) do
+        if x >= area.x and x <= area.x + area.w and y >= area.y and y <= area.y + area.h then
+            if area.type == "enter" then
+                -- Simulate ENTER key press
+                if string.len(self.characterName) > 0 then
+                    self.confirmCreate = true
+                    self.errorMessage = ""
+                else
+                    self.errorMessage = "Please enter a character name"
+                end
+            elseif area.type == "esc" then
+                -- Simulate ESC key press
+                Gamestate:pop()
+            elseif area.type == "y" then
+                -- Simulate Y key press
+                self:createSaveFile()
+            elseif area.type == "n" then
+                -- Simulate N key press
+                self.confirmCreate = false
+            end
+            return
+        end
+    end
 end
 
 return NewGame

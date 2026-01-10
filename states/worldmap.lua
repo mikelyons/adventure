@@ -7,6 +7,7 @@ local WorldGen = require("worldgen")
 local GameClock = require("gameclock")
 
 function WorldMap:load()
+    print("[WorldMap] Starting load()")
     -- Player state
     self.player = {
         x = 200,  -- start somewhere near top-left
@@ -27,9 +28,11 @@ function WorldMap:load()
         placed = false,       -- Vehicle starts not placed until player finds one
     }
 
+    print("[WorldMap] Creating inventory")
     -- Player inventory (Diablo 2-style grid)
     self.inventory = Inventory:new()
 
+    print("[WorldMap] Creating paperdoll")
     -- Player character paperdoll
     self.playerCharacter = Paperdoll:newCharacter({
         skinTone = "medium",
@@ -43,20 +46,23 @@ function WorldMap:load()
         shoesColor = "black"
     })
 
+    print("[WorldMap] Adding starting items")
     -- Give player some starting items
     self.inventory:addItem("rusty_sword", 1)
     self.inventory:addItem("cloth_shirt", 1)
     self.inventory:addItem("leather_boots", 1)
     self.inventory:addItem("health_potion", 3)
 
+    print("[WorldMap] Initializing game clock")
     -- Initialize game clock
     GameClock:init(8, 0, 1)
 
     -- World and tiles (will be generated or loaded)
+    -- Size comes from WorldGen CONFIG
     self.world = {
-        tileSize = 32,
-        cols = 200,
-        rows = 150,
+        tileSize = WorldGen.CONFIG.tileSize,
+        cols = WorldGen.CONFIG.worldCols,
+        rows = WorldGen.CONFIG.worldRows,
         width = 0,
         height = 0,
     }
@@ -95,11 +101,14 @@ function WorldMap:load()
     self.nearbyPOI = nil
     self.interactionPrompt = nil
 
+    print("[WorldMap] Initializing sprites")
     -- Initialize sprites
     Sprites:init()
+    print("[WorldMap] load() completed")
 end
 
 function WorldMap:enter()
+    print("[WorldMap] Starting enter()")
     -- Set controls panel mode
     if ControlsPanel then ControlsPanel:setMode("worldmap") end
 
@@ -110,8 +119,10 @@ function WorldMap:enter()
     end
 
     if self.worldData then
+        print("[WorldMap] Loading existing world data")
         -- Load existing world data
         self:loadWorldFromData()
+        print("[WorldMap] World data loaded")
 
         -- Load player position if available
         if self.saveData and self.saveData.playerX and self.saveData.playerY then
@@ -122,22 +133,29 @@ function WorldMap:enter()
             self.player.y = self.worldData.playerStartY
         end
     else
+        print("[WorldMap] Generating new world")
         -- New game - generate fresh world
         self:generateNewWorld()
+        print("[WorldMap] New world generated")
     end
 
+    print("[WorldMap] Resuming game clock")
     -- Resume game clock
     GameClock:resume()
+    print("[WorldMap] enter() completed")
 end
 
 function WorldMap:loadWorldFromData()
+    print("[WorldMap] Starting loadWorldFromData()")
     if not self.worldData then return end
 
+    print("[WorldMap] Loading game clock state")
     -- Load game clock state if available
     if self.worldData.gameClock then
         GameClock:deserialize(self.worldData.gameClock)
     end
 
+    print("[WorldMap] Regenerating world from seed")
     -- Regenerate world from seed (tiles are too large to save)
     if self.worldData.seed then
         local seed = self.worldData.seed
@@ -147,8 +165,10 @@ function WorldMap:loadWorldFromData()
         self.world.width = self.world.cols * self.world.tileSize
         self.world.height = self.world.rows * self.world.tileSize
 
+        print("[WorldMap] Calling WorldGen:generate with cols=" .. self.world.cols .. ", rows=" .. self.world.rows)
         -- Generate world using WorldGen with the saved seed
         local worldData = WorldGen:generate(seed, self.world.cols, self.world.rows)
+        print("[WorldMap] WorldGen:generate completed")
 
         -- Copy generated data
         self.tiles = worldData.tiles
@@ -196,8 +216,8 @@ function WorldMap:loadWorldFromData()
             end
 
             table.insert(self.pointsOfInterest, {
-                x = poi.x * self.world.tileSize,
-                y = poi.y * self.world.tileSize,
+                x = poi.x,  -- Already in pixel coordinates from worldgen
+                y = poi.y,  -- Already in pixel coordinates from worldgen
                 radius = poi.radius or 18,
                 name = poi.name,
                 message = poi.message,
@@ -223,8 +243,11 @@ function WorldMap:loadWorldFromData()
     if not self.vehicle.placed then
         local startX = self.worldData.playerStartX or 200
         local startY = self.worldData.playerStartY or 200
+        print("[WorldMap] Placing vehicle")
         self:placeVehicle(startX, startY)
+        print("[WorldMap] Vehicle placed")
     end
+    print("[WorldMap] loadWorldFromData() completed")
 end
 
 function WorldMap:generateNewWorld()
@@ -258,8 +281,8 @@ function WorldMap:generateNewWorld()
     -- Add other POIs (dungeons, caves, etc)
     for _, poi in ipairs(worldData.pointsOfInterest) do
         table.insert(self.pointsOfInterest, {
-            x = poi.x * self.world.tileSize,
-            y = poi.y * self.world.tileSize,
+            x = poi.x,  -- Already in pixel coordinates from worldgen
+            y = poi.y,  -- Already in pixel coordinates from worldgen
             radius = poi.radius or 18,
             name = poi.name,
             message = poi.message,
@@ -537,7 +560,8 @@ function WorldMap:draw()
     local ts = self.world.tileSize
 
     love.graphics.push()
-    love.graphics.translate(-self.camera.x, -self.camera.y)
+    -- Round camera position to prevent sub-pixel jittering
+    love.graphics.translate(-math.floor(self.camera.x + 0.5), -math.floor(self.camera.y + 0.5))
 
     -- Draw visible tiles only using sprites
     local startCol = math.max(1, math.floor(self.camera.x / ts) + 1)
@@ -567,7 +591,7 @@ function WorldMap:draw()
 
             -- Draw with pulsing effect
             local pulse = math.sin(love.timer.getTime() * 3) * 0.15 + 0.85
-            local markerScale = (poi.radius / 8) * pulse
+            local markerScale = (poi.radius / 8) * pulse * 1.5  -- Larger markers
 
             Color.set(1, 1, 1, 1)
             if markerSprite then
@@ -577,9 +601,12 @@ function WorldMap:draw()
                     markerScale, markerScale,
                     8, 8)  -- Center origin
             else
-                -- Fallback to circle
-                Color.set(poi.color[1] * pulse, poi.color[2] * pulse, poi.color[3] * pulse, 0.8)
-                love.graphics.circle("fill", poi.x, poi.y, poi.radius)
+                -- Fallback to larger, more visible circle with outline
+                Color.set(poi.color[1] * pulse, poi.color[2] * pulse, poi.color[3] * pulse, 0.9)
+                love.graphics.circle("fill", poi.x, poi.y, poi.radius * 1.2)
+                Color.set(1, 1, 1, 0.8)
+                love.graphics.setLineWidth(2)
+                love.graphics.circle("line", poi.x, poi.y, poi.radius * 1.2)
             end
 
             -- Draw name if discovered
@@ -815,104 +842,47 @@ function WorldMap:drawMessageOverlay()
         alpha = (duration - timer) / fadeOut
     end
 
-    -- Semi-transparent background with vignette
-    Color.set(0, 0, 0, 0.6 * alpha)
-    love.graphics.rectangle("fill", 0, 0, screenW, screenH)
+    -- Small notification box in top-right corner
+    local boxWidth = 280
+    local boxHeight = 50
+    local boxX = screenW - boxWidth - 15
+    local boxY = 80
 
-    -- Message box dimensions
-    local boxWidth = 620
-    local boxHeight = 220
-    local boxX = (screenW - boxWidth) / 2
-    local boxY = (screenH - boxHeight) / 2
-
-    -- Outer glow/shadow
+    -- Shadow
     Color.set(0, 0, 0, 0.5 * alpha)
-    love.graphics.rectangle("fill", boxX - 4, boxY - 4, boxWidth + 8, boxHeight + 8, 12, 12)
+    love.graphics.rectangle("fill", boxX + 3, boxY + 3, boxWidth, boxHeight, 6, 6)
 
-    -- Main box background
-    Color.set(0.06, 0.10, 0.16, 0.95 * alpha)
-    love.graphics.rectangle("fill", boxX, boxY, boxWidth, boxHeight, 8, 8)
+    -- Background
+    Color.set(0.08, 0.12, 0.18, 0.92 * alpha)
+    love.graphics.rectangle("fill", boxX, boxY, boxWidth, boxHeight, 6, 6)
 
-    -- Inner panel (slightly lighter)
-    Color.set(0.10, 0.14, 0.20, 0.9 * alpha)
-    love.graphics.rectangle("fill", boxX + 4, boxY + 4, boxWidth - 8, boxHeight - 8, 6, 6)
+    -- Border
+    Color.set(0.45, 0.60, 0.75, 0.8 * alpha)
+    love.graphics.setLineWidth(2)
+    love.graphics.rectangle("line", boxX, boxY, boxWidth, boxHeight, 6, 6)
 
-    -- Decorative border
-    love.graphics.setLineWidth(3)
-    Color.set(0.45, 0.60, 0.75, alpha)
-    love.graphics.rectangle("line", boxX, boxY, boxWidth, boxHeight, 8, 8)
+    -- Small icon/indicator
+    local iconX = boxX + 12
+    local iconY = boxY + boxHeight / 2
+    Color.set(0.85, 0.75, 0.45, alpha)
+    love.graphics.circle("fill", iconX, iconY, 4)
 
-    -- Inner highlight border
-    love.graphics.setLineWidth(1)
-    Color.set(0.55, 0.70, 0.85, 0.4 * alpha)
-    love.graphics.rectangle("line", boxX + 3, boxY + 3, boxWidth - 6, boxHeight - 6, 6, 6)
-
-    -- Corner decorations
-    local cornerSize = 12
-    Color.set(0.55, 0.70, 0.85, alpha)
-    -- Top-left
-    love.graphics.rectangle("fill", boxX + 8, boxY + 8, cornerSize, 2)
-    love.graphics.rectangle("fill", boxX + 8, boxY + 8, 2, cornerSize)
-    -- Top-right
-    love.graphics.rectangle("fill", boxX + boxWidth - 8 - cornerSize, boxY + 8, cornerSize, 2)
-    love.graphics.rectangle("fill", boxX + boxWidth - 10, boxY + 8, 2, cornerSize)
-    -- Bottom-left
-    love.graphics.rectangle("fill", boxX + 8, boxY + boxHeight - 10, cornerSize, 2)
-    love.graphics.rectangle("fill", boxX + 8, boxY + boxHeight - 8 - cornerSize, 2, cornerSize)
-    -- Bottom-right
-    love.graphics.rectangle("fill", boxX + boxWidth - 8 - cornerSize, boxY + boxHeight - 10, cornerSize, 2)
-    love.graphics.rectangle("fill", boxX + boxWidth - 10, boxY + boxHeight - 8 - cornerSize, 2, cornerSize)
-
-    -- Discovery icon (star burst effect)
-    local iconX = boxX + boxWidth / 2
-    local iconY = boxY + 35
-    local starPulse = math.sin(love.timer.getTime() * 5) * 0.2 + 1
-    Color.set(0.95, 0.85, 0.45, alpha)
-    for i = 0, 7 do
-        local angle = (i / 8) * math.pi * 2 + love.timer.getTime()
-        local len = 12 * starPulse
-        love.graphics.line(
-            iconX, iconY,
-            iconX + math.cos(angle) * len, iconY + math.sin(angle) * len
-        )
-    end
-    love.graphics.circle("fill", iconX, iconY, 6)
-
-    -- Title with badge background
-    local font = love.graphics.getFont()
-    local titleWidth = font:getWidth(msg.title)
-    Color.set(0.20, 0.28, 0.38, 0.9 * alpha)
-    love.graphics.rectangle("fill", boxX + (boxWidth - titleWidth) / 2 - 15, boxY + 55, titleWidth + 30, 28, 4, 4)
-    Color.set(0.45, 0.60, 0.75, alpha)
-    love.graphics.setLineWidth(1)
-    love.graphics.rectangle("line", boxX + (boxWidth - titleWidth) / 2 - 15, boxY + 55, titleWidth + 30, 28, 4, 4)
-
+    -- Title text (compact)
     Color.set(0.95, 0.90, 0.70, alpha)
-    love.graphics.printf(msg.title, boxX + 20, boxY + 60, boxWidth - 40, "center")
+    love.graphics.print(msg.title, boxX + 25, boxY + 10)
 
-    -- Message text
-    Color.set(0.90, 0.92, 0.95, alpha)
-    love.graphics.printf(msg.message, boxX + 25, boxY + 100, boxWidth - 50, "left")
-
-    -- Progress bar with styled appearance
-    local progressWidth = boxWidth - 50
-    local progressHeight = 8
-    local progressX = boxX + 25
-    local progressY = boxY + boxHeight - 35
-
-    -- Progress bar background
-    Color.set(0.15, 0.20, 0.25, alpha)
-    love.graphics.rectangle("fill", progressX, progressY, progressWidth, progressHeight, 3, 3)
-
-    -- Progress bar fill
-    local progress = timer / duration
-    local gradientColor = {0.45, 0.70, 0.85}
-    Color.set(gradientColor[1], gradientColor[2], gradientColor[3], alpha)
-    love.graphics.rectangle("fill", progressX + 2, progressY + 2, (progressWidth - 4) * progress, progressHeight - 4, 2, 2)
-
-    -- Progress bar highlight
-    Color.set(gradientColor[1] + 0.2, gradientColor[2] + 0.2, gradientColor[3] + 0.2, 0.6 * alpha)
-    love.graphics.rectangle("fill", progressX + 2, progressY + 2, (progressWidth - 4) * progress, (progressHeight - 4) / 2, 2, 2)
+    -- Message text (smaller, truncated if needed)
+    Color.set(0.75, 0.78, 0.82, 0.9 * alpha)
+    local font = love.graphics.getFont()
+    local messageText = msg.message
+    -- Truncate if too long
+    if font:getWidth(messageText) > boxWidth - 30 then
+        while font:getWidth(messageText .. "...") > boxWidth - 30 and #messageText > 0 do
+            messageText = messageText:sub(1, -2)
+        end
+        messageText = messageText .. "..."
+    end
+    love.graphics.print(messageText, boxX + 25, boxY + 28)
 end
 
 function WorldMap:keypressed(key)

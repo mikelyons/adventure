@@ -7,8 +7,9 @@ Prompt me to ask for confirmation everytime claude selects a task from this file
 ## Bugs/Issues
 
 - [x] example completed item/
-- [ ] choppy movement in town mode
-- [ ] world map is too big so it's hard to find any dungeons of POIs
+- [x] choppy movement in town mode
+- [x] world map is too big so it's hard to find any dungeons of POIs
+- [x] new game freezes when you press Y to confirm character name (fixed by reducing world size)
 - [ ] any pop up text box should be dismissable with the escape key when it's open and should disappear immediately when dismissed
 
 ## New Features

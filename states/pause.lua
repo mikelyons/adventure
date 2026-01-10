@@ -4,6 +4,8 @@ local Color = require("color")
 function Pause:load()
     self.selected = 1
     self.selectionTime = 0
+    self.hoveredOption = nil
+    self.clickableAreas = {}
 
     -- Check if we're in a sub-state (not directly on world map)
     -- The state below pause is at stack position #stack - 1
@@ -92,21 +94,35 @@ function Pause:draw()
     local menuStartY = panelY + 80
     local menuSpacing = 45
 
+    -- Clear clickable areas
+    self.clickableAreas = {}
+
     for i, option in ipairs(self.options) do
         local optY = menuStartY + (i - 1) * menuSpacing
         local isSelected = (i == self.selected)
+        local isHovered = (i == self.hoveredOption)
 
         -- Selection animation
-        local selectPulse = isSelected and (math.sin(self.selectionTime * 4) * 0.1 + 0.9) or 0.6
+        local selectPulse = (isSelected or isHovered) and (math.sin(self.selectionTime * 4) * 0.1 + 0.9) or 0.6
         local xOffset = isSelected and (math.sin(self.selectionTime * 3) * 2) or 0
 
-        -- Option background for selected
-        if isSelected then
-            local bgW = 240
-            local bgX = panelX + (panelW - bgW) / 2
+        local bgW = 240
+        local bgX = panelX + (panelW - bgW) / 2
 
+        -- Store clickable area
+        table.insert(self.clickableAreas, {
+            index = i,
+            x = bgX,
+            y = optY - 3,
+            w = bgW,
+            h = 30
+        })
+
+        -- Option background for selected or hovered
+        if isSelected or isHovered then
             -- Glow behind
-            Color.set(0.35, 0.50, 0.75, 0.3)
+            local glowColor = isSelected and {0.35, 0.50, 0.75} or {0.30, 0.45, 0.65}
+            Color.set(glowColor[1], glowColor[2], glowColor[3], 0.3)
             love.graphics.rectangle("fill", bgX - 8, optY - 6, bgW + 16, 36, 6, 6)
 
             -- Background
@@ -114,22 +130,25 @@ function Pause:draw()
             love.graphics.rectangle("fill", bgX, optY - 3, bgW, 30, 5, 5)
 
             -- Border
-            Color.set(0.50, 0.65, 0.90, selectPulse)
+            local borderColor = isSelected and {0.50, 0.65, 0.90} or {0.45, 0.60, 0.80}
+            Color.set(borderColor[1], borderColor[2], borderColor[3], selectPulse)
             love.graphics.setLineWidth(2)
             love.graphics.rectangle("line", bgX, optY - 3, bgW, 30, 5, 5)
 
-            -- Arrow indicators
-            Color.set(0.70, 0.80, 1, selectPulse)
-            local arrowX = bgX - 15 + xOffset
-            love.graphics.polygon("fill",
-                arrowX, optY + 12,
-                arrowX + 8, optY + 7,
-                arrowX + 8, optY + 17
-            )
+            -- Arrow indicators (only for selected)
+            if isSelected then
+                Color.set(0.70, 0.80, 1, selectPulse)
+                local arrowX = bgX - 15 + xOffset
+                love.graphics.polygon("fill",
+                    arrowX, optY + 12,
+                    arrowX + 8, optY + 7,
+                    arrowX + 8, optY + 17
+                )
+            end
         end
 
         -- Option text
-        if isSelected then
+        if isSelected or isHovered then
             Color.set(0.95, 0.95, 1)
         else
             Color.set(0.55, 0.60, 0.70)
@@ -160,36 +179,64 @@ function Pause:keypressed(key)
         end
         self.selectionTime = 0
     elseif key == "return" or key == "kpenter" then
-        local option = self.options[self.selected]
+        self:selectOption(self.selected)
+    end
+end
 
-        if option == "Resume" then
-            Gamestate:pop()
-        elseif option == "Return to World Map" then
-            -- Pop pause and current game mode to return to world map
-            Gamestate:pop() -- pop pause
-            -- Save current state if it has a save method
+function Pause:selectOption(index)
+    local option = self.options[index]
+
+    if option == "Resume" then
+        Gamestate:pop()
+    elseif option == "Return to World Map" then
+        -- Pop pause and current game mode to return to world map
+        Gamestate:pop() -- pop pause
+        -- Save current state if it has a save method
+        local current = Gamestate:current()
+        if current.saveTownState then
+            current:saveTownState()
+        end
+        Gamestate:pop() -- pop the game mode (Town, Level, etc.)
+    elseif option == "Configure Controls" then
+        local controlsConfig = require("states.controlsconfig")
+        controlsConfig:enter(self.gameMode)
+        Gamestate:push(controlsConfig)
+    elseif option == "Save & Exit to Menu" then
+        -- Pop back to main menu (pop pause, then pop all gameplay states)
+        Gamestate:pop() -- pop pause
+        while Gamestate:current() and Gamestate:current() ~= require("states.mainmenu") do
+            -- Save if the state has a save method
             local current = Gamestate:current()
-            if current.saveTownState then
+            if current.saveGame then
+                current:saveGame()
+            elseif current.saveTownState then
                 current:saveTownState()
             end
-            Gamestate:pop() -- pop the game mode (Town, Level, etc.)
-        elseif option == "Configure Controls" then
-            local controlsConfig = require("states.controlsconfig")
-            controlsConfig:enter(self.gameMode)
-            Gamestate:push(controlsConfig)
-        elseif option == "Save & Exit to Menu" then
-            -- Pop back to main menu (pop pause, then pop all gameplay states)
-            Gamestate:pop() -- pop pause
-            while Gamestate:current() and Gamestate:current() ~= require("states.mainmenu") do
-                -- Save if the state has a save method
-                local current = Gamestate:current()
-                if current.saveGame then
-                    current:saveGame()
-                elseif current.saveTownState then
-                    current:saveTownState()
-                end
-                Gamestate:pop()
-            end
+            Gamestate:pop()
+        end
+    end
+end
+
+function Pause:mousemoved(x, y)
+    self.hoveredOption = nil
+
+    -- Check if mouse is over any clickable area
+    for _, area in ipairs(self.clickableAreas) do
+        if x >= area.x and x <= area.x + area.w and y >= area.y and y <= area.y + area.h then
+            self.hoveredOption = area.index
+        end
+    end
+end
+
+function Pause:mousepressed(x, y, button)
+    if button ~= 1 then return end  -- Only left click
+
+    -- Check if mouse is over any clickable area
+    for _, area in ipairs(self.clickableAreas) do
+        if x >= area.x and x <= area.x + area.w and y >= area.y and y <= area.y + area.h then
+            self.selected = area.index
+            self:selectOption(area.index)
+            return
         end
     end
 end

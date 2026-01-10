@@ -327,7 +327,8 @@ function BuildingInterior:draw()
     love.graphics.rectangle("fill", 0, 0, screenW, screenH)
 
     love.graphics.push()
-    love.graphics.translate(-self.camera.x, -self.camera.y)
+    -- Round camera position to prevent sub-pixel jittering
+    love.graphics.translate(-math.floor(self.camera.x + 0.5), -math.floor(self.camera.y + 0.5))
 
     -- Draw room background
     self:drawBackground()

@@ -5,20 +5,21 @@ local WorldGen = {}
 
 -- World configuration
 WorldGen.CONFIG = {
-    -- World size
-    worldCols = 200,
-    worldRows = 150,
-    tileSize = 32,
+    -- World size (20x20 tiles * 64px = 1280px, fits well on screen with room to explore)
+    worldCols = 20,
+    worldRows = 20,
+    tileSize = 64,  -- Larger tiles for higher resolution graphics
+    oceanBorderSize = 1, -- Tiles of ocean around the border
 
-    -- Continent generation
-    numContinents = 4,
-    continentMinSize = 800,  -- minimum tiles
-    continentMaxSize = 2500, -- maximum tiles
+    -- Continent generation (adjusted for smaller world)
+    numContinents = 1,
+    continentMinSize = 50,  -- minimum tiles (20x20 = 400 total, 18x18 = 324 playable)
+    continentMaxSize = 180, -- maximum tiles
 
     -- Town generation
-    townsPerSmallContinent = {1, 2},   -- min, max
-    townsPerMediumContinent = {2, 4},
-    townsPerLargeContinent = {3, 5},
+    townsPerSmallContinent = {1, 1},   -- min, max
+    townsPerMediumContinent = {1, 2},
+    townsPerLargeContinent = {2, 3},
 
     -- Terrain thresholds
     deepWater = 0.30,
@@ -89,14 +90,16 @@ WorldGen.POI_TYPES = {
 }
 
 -- Generate a complete world
-function WorldGen:generate(seed)
+function WorldGen:generate(seed, cols, rows)
     seed = seed or os.time()
+    cols = cols or self.CONFIG.worldCols
+    rows = rows or self.CONFIG.worldRows
     love.math.setRandomSeed(seed)
 
     local world = {
         seed = seed,
-        cols = self.CONFIG.worldCols,
-        rows = self.CONFIG.worldRows,
+        cols = cols,
+        rows = rows,
         tileSize = self.CONFIG.tileSize,
         tiles = {},
         continents = {},
@@ -169,6 +172,13 @@ function WorldGen:generateTerrain(world)
                 tile = "mountain"
             end
 
+            -- Force ocean border around edges
+            local borderSize = self.CONFIG.oceanBorderSize
+            if row <= borderSize or row > world.rows - borderSize or
+               col <= borderSize or col > world.cols - borderSize then
+                tile = "deep_water"
+            end
+
             world.tiles[row][col] = tile
         end
     end
@@ -189,6 +199,8 @@ function WorldGen:identifyContinents(world)
         end
     end
 
+    print("[WorldGen] Starting continent identification for " .. world.cols .. "x" .. world.rows .. " world")
+
     -- Flood fill to find continents
     for row = 1, world.rows do
         for col = 1, world.cols do
@@ -197,7 +209,7 @@ function WorldGen:identifyContinents(world)
                 continentId = continentId + 1
                 local size = self:floodFillContinent(world, row, col, continentId, visited)
 
-                if size >= 100 then -- Minimum size to count as continent
+                if size >= self.CONFIG.continentMinSize then -- Minimum size to count as continent
                     table.insert(world.continents, {
                         id = continentId,
                         size = size,
@@ -206,6 +218,7 @@ function WorldGen:identifyContinents(world)
                         centerY = 0,
                         towns = {}
                     })
+                    print("[WorldGen] Found continent #" .. continentId .. " with " .. size .. " tiles")
                 end
             end
         end
@@ -239,11 +252,14 @@ function WorldGen:identifyContinents(world)
     -- Sort continents by size (largest first)
     table.sort(world.continents, function(a, b) return a.size > b.size end)
 
-    -- Keep only significant continents
+    -- Keep only significant continents (already filtered by continentMinSize above)
+    -- For smaller worlds, we keep all continents that met the minimum size
     local significantContinents = {}
+    local maxContinents = self.CONFIG.numContinents or 3
     for i, cont in ipairs(world.continents) do
-        if i <= 6 and cont.size >= 200 then
+        if i <= maxContinents then
             table.insert(significantContinents, cont)
+            print("[WorldGen] Keeping continent #" .. i .. " with " .. cont.size .. " tiles")
         end
     end
     world.continents = significantContinents
@@ -603,37 +619,33 @@ function WorldGen:placePOIs(world)
         })
     end
 
-    -- Place dungeons/exploration POIs on continents
-    for _, continent in ipairs(world.continents) do
-        local poiCount = math.floor(continent.size / 400) + 1
-        poiCount = math.min(poiCount, 4)
+    -- Track which POI types have been placed
+    local placedTypes = {}
 
+    -- Helper function to place a POI
+    local function placePOI(continent, poiType, forcedName)
         local attempts = 0
-        local placed = 0
-
-        while placed < poiCount and attempts < 50 do
+        while attempts < 100 do
             attempts = attempts + 1
 
             local tileIdx = love.math.random(1, #continent.tiles)
             local tile = continent.tiles[tileIdx]
             local row, col = tile.row, tile.col
 
-            -- Check if suitable (not water, not too close to towns/other POIs)
             local tileType = world.tiles[row][col]
             if tileType ~= "water" and tileType ~= "deep_water" then
                 local tooClose = false
                 for _, poi in ipairs(world.pointsOfInterest) do
                     local dist = math.sqrt((col * world.tileSize - poi.x)^2 + (row * world.tileSize - poi.y)^2)
-                    if dist < 300 then
+                    if dist < 64 then  -- 2 tiles minimum distance
                         tooClose = true
                         break
                     end
                 end
 
                 if not tooClose then
-                    local poiType = self.POI_TYPES[love.math.random(1, #self.POI_TYPES)]
-                    local poiName = poiType.name
-                    if love.math.random() > 0.5 then
+                    local poiName = forcedName or poiType.name
+                    if not forcedName and love.math.random() > 0.5 then
                         local adjectives = {"Ancient", "Forgotten", "Hidden", "Mysterious", "Dark", "Sacred"}
                         poiName = adjectives[love.math.random(1, #adjectives)] .. " " .. poiType.name
                     end
@@ -652,13 +664,45 @@ function WorldGen:placePOIs(world)
                         levelSeed = love.math.random(1, 999999),
                         visited = false
                     })
-                    placed = placed + 1
+                    placedTypes[poiType.type] = true
+                    return true
                 end
             end
+        end
+        return false
+    end
+
+    -- Ensure at least one of each POI type spawns
+    if #world.continents > 0 then
+        local mainContinent = world.continents[1]
+
+        -- Place one of each POI type guaranteed
+        for _, poiType in ipairs(self.POI_TYPES) do
+            placePOI(mainContinent, poiType, poiType.name)
+        end
+
+        -- Place additional random POIs
+        local extraCount = math.floor(mainContinent.size / 50)
+        for i = 1, extraCount do
+            local poiType = self.POI_TYPES[love.math.random(1, #self.POI_TYPES)]
+            placePOI(mainContinent, poiType)
         end
     end
 
     print("Total POIs: " .. #world.pointsOfInterest)
+    print("POI types placed: " .. table.concat(self:getPlacedTypes(world), ", "))
+end
+
+function WorldGen:getPlacedTypes(world)
+    local types = {}
+    local seen = {}
+    for _, poi in ipairs(world.pointsOfInterest) do
+        if poi.levelType and not seen[poi.levelType] then
+            table.insert(types, poi.levelType)
+            seen[poi.levelType] = true
+        end
+    end
+    return types
 end
 
 function WorldGen:setPlayerStart(world)
@@ -783,8 +827,15 @@ function WorldGen:drawRoadSegment(world, x1, y1, x2, y2)
     local endX, endY = math.floor(x2), math.floor(y2)
 
     local roadWidth = 1 -- Width of road in tiles
+    local maxIterations = world.cols * world.rows * 2 -- Safety limit
+    local iterations = 0
 
     while true do
+        iterations = iterations + 1
+        if iterations > maxIterations then
+            print("Warning: Road drawing exceeded max iterations, breaking loop")
+            break
+        end
         -- Place road tile and adjacent tiles for width
         for w = -roadWidth, roadWidth do
             local rx, ry = x, y

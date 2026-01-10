@@ -1489,7 +1489,7 @@ function Town:update(dt)
     local targetCamY = clamp(self.player.y - screenH / 2, 0, math.max(0, self.town.height - screenH))
 
     -- Smooth camera interpolation (lerp)
-    local camSpeed = 8  -- Higher = snappier camera
+    local camSpeed = 6  -- Higher = snappier camera, lower = smoother follow
     self.camera.x = self.camera.x + (targetCamX - self.camera.x) * camSpeed * dt
     self.camera.y = self.camera.y + (targetCamY - self.camera.y) * camSpeed * dt
 
@@ -1881,7 +1881,8 @@ function Town:draw()
     local time = love.timer.getTime()
 
     love.graphics.push()
-    love.graphics.translate(-self.camera.x, -self.camera.y)
+    -- Round camera position to prevent sub-pixel jittering
+    love.graphics.translate(-math.floor(self.camera.x + 0.5), -math.floor(self.camera.y + 0.5))
 
     -- Draw visible tiles only (with safety check)
     if self.tiles then
