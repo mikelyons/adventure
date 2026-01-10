@@ -2,6 +2,9 @@ local Town = {}
 local Color = require("color")
 local GameClock = require("gameclock")
 
+-- Pre-rendered town background canvas (major performance optimization)
+local townBackgroundCanvas = nil
+
 local function lerp(a, b, t)
     return a + (b - a) * t
 end
@@ -661,6 +664,12 @@ local function drawPlayer(player, time)
 end
 
 function Town:load()
+    -- Clear background canvas from any previous town
+    if townBackgroundCanvas then
+        townBackgroundCanvas:release()
+        townBackgroundCanvas = nil
+    end
+
     -- Player state with velocity for smooth movement
     self.player = {
         x = 400,
@@ -1875,31 +1884,66 @@ function Town:drawBuildings(screenW, screenH, time)
     end
 end
 
+function Town:drawPlayerCharacter(time)
+    local player = self.player
+    local x, y = player.x, player.y
+
+    -- Shadow
+    Color.set(0, 0, 0, 0.3)
+    love.graphics.ellipse("fill", x, y + 20, 12, 5)
+
+    -- Use paperdoll if available, otherwise fallback to basic drawing
+    if self.playerCharacter then
+        -- Determine direction: 1 = right, -1 = left
+        local direction = 1
+        if player.direction == "left" then
+            direction = -1
+        end
+
+        -- Draw using paperdoll (centered at player position)
+        local Paperdoll = require("paperdoll")
+        local scale = 1.5  -- Adjust scale for town view
+        local drawX = x - (Paperdoll.width * scale) / 2
+        local drawY = y - (Paperdoll.height * scale) + 5  -- Offset so feet touch ground
+
+        Color.set(1, 1, 1, 1)
+        self.playerCharacter:draw(drawX, drawY, scale, direction)
+    else
+        -- Fallback: draw simple player
+        drawPlayer(player, time)
+    end
+end
+
 function Town:draw()
     local screenW, screenH = love.graphics.getDimensions()
     local ts = self.town.tileSize
     local time = love.timer.getTime()
 
-    love.graphics.push()
-    -- Round camera position to prevent sub-pixel jittering
-    love.graphics.translate(-math.floor(self.camera.x + 0.5), -math.floor(self.camera.y + 0.5))
+    -- Pre-render entire town background to canvas (done once)
+    if not townBackgroundCanvas and self.tiles then
+        local width = self.town.cols * ts
+        local height = self.town.rows * ts
+        townBackgroundCanvas = love.graphics.newCanvas(width, height)
 
-    -- Draw visible tiles only (with safety check)
-    if self.tiles then
-        local startCol = math.max(1, math.floor(self.camera.x / ts) + 1)
-        local endCol = math.min(self.town.cols, math.floor((self.camera.x + screenW) / ts) + 1)
-        local startRow = math.max(1, math.floor(self.camera.y / ts) + 1)
-        local endRow = math.min(self.town.rows, math.floor((self.camera.y + screenH) / ts) + 1)
+        love.graphics.push("all")
+        love.graphics.setCanvas(townBackgroundCanvas)
+        love.graphics.clear(0, 0, 0, 0)
+        love.graphics.origin()
+        love.graphics.setBlendMode("alpha")
 
-        for row = startRow, endRow do
-            for col = startCol, endCol do
+        -- Render all static tiles to canvas
+        for row = 1, self.town.rows do
+            for col = 1, self.town.cols do
                 local tile = self.tiles[row][col]
                 if tile then
                     local tx = (col - 1) * ts
                     local ty = (row - 1) * ts
 
+                    -- Skip water (animated), render everything else
                     if tile == "water" then
-                        drawWaterTile(tx, ty, ts, time)
+                        -- Draw placeholder for water (will be drawn animated later)
+                        Color.set(0.2, 0.3, 0.5)
+                        love.graphics.rectangle("fill", tx, ty, ts, ts)
                     elseif tile == "grass" then
                         drawGrassTile(tx, ty, ts, col, row)
                     elseif tile == "path" then
@@ -1917,9 +1961,36 @@ function Town:draw()
                     elseif tile == "market" then
                         drawMarketTile(tx, ty, ts, col, row)
                     else
-                        -- Default to grass for unknown tiles
                         drawGrassTile(tx, ty, ts, col, row)
                     end
+                end
+            end
+        end
+
+        love.graphics.setCanvas()
+        love.graphics.pop()
+        print("Town background pre-rendered to canvas")
+    end
+
+    love.graphics.push()
+    -- Round camera position to prevent sub-pixel jittering
+    love.graphics.translate(-math.floor(self.camera.x + 0.5), -math.floor(self.camera.y + 0.5))
+
+    -- Draw pre-rendered background (single draw call!)
+    if townBackgroundCanvas then
+        Color.set(1, 1, 1, 1)
+        love.graphics.draw(townBackgroundCanvas, 0, 0)
+
+        -- Draw animated water tiles on top
+        local startCol = math.max(1, math.floor(self.camera.x / ts) + 1)
+        local endCol = math.min(self.town.cols, math.floor((self.camera.x + screenW) / ts) + 1)
+        local startRow = math.max(1, math.floor(self.camera.y / ts) + 1)
+        local endRow = math.min(self.town.rows, math.floor((self.camera.y + screenH) / ts) + 1)
+
+        for row = startRow, endRow do
+            for col = startCol, endCol do
+                if self.tiles[row] and self.tiles[row][col] == "water" then
+                    drawWaterTile((col - 1) * ts, (row - 1) * ts, ts, time)
                 end
             end
         end
@@ -1951,13 +2022,13 @@ function Town:draw()
     local playerDrawn = false
     for _, npc in ipairs(sortedNPCs) do
         if not playerDrawn and self.player.y < npc.y then
-            drawPlayer(self.player, time)
+            self:drawPlayerCharacter(time)
             playerDrawn = true
         end
         drawNPC(npc, time)
     end
     if not playerDrawn then
-        drawPlayer(self.player, time)
+        self:drawPlayerCharacter(time)
     end
 
     -- Draw cutscene actors

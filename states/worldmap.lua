@@ -223,8 +223,8 @@ function WorldMap:loadWorldFromData()
                 message = poi.message,
                 discovered = discovered,
                 color = poi.color,
-                levelType = poi.type,
-                levelSeed = poi.seed or math.random(10000, 99999),
+                levelType = poi.levelType,  -- Use levelType, not type
+                levelSeed = poi.levelSeed or math.random(10000, 99999),
                 visited = visited
             })
         end
@@ -288,8 +288,8 @@ function WorldMap:generateNewWorld()
             message = poi.message,
             discovered = false,
             color = poi.color,
-            levelType = poi.type,
-            levelSeed = poi.seed or math.random(10000, 99999),
+            levelType = poi.levelType,  -- Use levelType, not type
+            levelSeed = poi.levelSeed or math.random(10000, 99999),
             visited = false
         })
     end
@@ -520,6 +520,7 @@ function WorldMap:enterTown(poi)
     newState.townData = poi and poi.townData or self.townData
     newState.optionsData = self.optionsData
     newState.gameClock = GameClock  -- Pass game clock for NPC schedules
+    newState.playerCharacter = self.playerCharacter  -- Pass paperdoll for player drawing
     Gamestate:push(newState)
 end
 

@@ -46,6 +46,7 @@ function Pause:load()
         table.insert(self.options, "Return to World Map")
     end
     table.insert(self.options, "Configure Controls")
+    table.insert(self.options, DebugUI:isVisible() and "Hide Debug UI" or "Show Debug UI")
     table.insert(self.options, "Save & Exit to Menu")
 end
 
@@ -201,6 +202,15 @@ function Pause:selectOption(index)
         local controlsConfig = require("states.controlsconfig")
         controlsConfig:enter(self.gameMode)
         Gamestate:push(controlsConfig)
+    elseif option == "Show Debug UI" or option == "Hide Debug UI" then
+        DebugUI:toggle()
+        -- Update the option text
+        for i, opt in ipairs(self.options) do
+            if opt == "Show Debug UI" or opt == "Hide Debug UI" then
+                self.options[i] = DebugUI:isVisible() and "Hide Debug UI" or "Show Debug UI"
+                break
+            end
+        end
     elseif option == "Save & Exit to Menu" then
         -- Pop back to main menu (pop pause, then pop all gameplay states)
         Gamestate:pop() -- pop pause
