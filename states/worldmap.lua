@@ -201,39 +201,35 @@ function WorldMap:loadWorldFromData()
             })
         end
 
-        -- Add other POIs (dungeons, caves, etc)
+        -- Add other POIs (dungeons, caves, etc) - skip homebase, we place it near player
         for i, poi in ipairs(worldData.pointsOfInterest) do
-            -- Restore saved states if available
-            local discovered = false
-            local visited = false
-            if self.worldData.poiStates then
-                for _, savedPoi in ipairs(self.worldData.poiStates) do
-                    if savedPoi.name == poi.name then
-                        discovered = savedPoi.discovered or false
-                        visited = savedPoi.visited or false
-                        break
+            if poi.levelType ~= "homebase" then
+                -- Restore saved states if available
+                local discovered = false
+                local visited = false
+                if self.worldData.poiStates then
+                    for _, savedPoi in ipairs(self.worldData.poiStates) do
+                        if savedPoi.name == poi.name then
+                            discovered = savedPoi.discovered or false
+                            visited = savedPoi.visited or false
+                            break
+                        end
                     end
                 end
-            end
 
-            -- Home base is always discovered
-            if poi.isHomeBase or poi.levelType == "homebase" then
-                discovered = true
+                table.insert(self.pointsOfInterest, {
+                    x = poi.x,
+                    y = poi.y,
+                    radius = poi.radius or 18,
+                    name = poi.name,
+                    message = poi.message,
+                    discovered = discovered,
+                    color = poi.color,
+                    levelType = poi.levelType,
+                    levelSeed = poi.levelSeed or math.random(10000, 99999),
+                    visited = visited
+                })
             end
-
-            table.insert(self.pointsOfInterest, {
-                x = poi.x,  -- Already in pixel coordinates from worldgen
-                y = poi.y,  -- Already in pixel coordinates from worldgen
-                radius = poi.radius or 18,
-                name = poi.name,
-                message = poi.message,
-                discovered = discovered,
-                color = poi.color,
-                levelType = poi.levelType,  -- Use levelType, not type
-                levelSeed = poi.levelSeed or math.random(10000, 99999),
-                visited = visited,
-                isHomeBase = poi.isHomeBase or (poi.levelType == "homebase")
-            })
         end
 
         -- Store seed for saving
@@ -246,10 +242,15 @@ function WorldMap:loadWorldFromData()
     print("Loaded " .. #self.pointsOfInterest .. " points of interest")
     print("Loaded " .. #self.towns .. " towns")
 
+    -- Get player start position for placing home base and vehicle
+    local startX = self.worldData.playerStartX or self.player.x or 200
+    local startY = self.worldData.playerStartY or self.player.y or 200
+
+    -- Place home base near player start
+    self:placeHomeBase(startX, startY)
+
     -- Place vehicle if not already placed (for saves from before vehicle was added)
     if not self.vehicle.placed then
-        local startX = self.worldData.playerStartX or 200
-        local startY = self.worldData.playerStartY or 200
         print("[WorldMap] Placing vehicle")
         self:placeVehicle(startX, startY)
         print("[WorldMap] Vehicle placed")
@@ -285,26 +286,31 @@ function WorldMap:generateNewWorld()
         })
     end
 
-    -- Add other POIs (dungeons, caves, etc)
+    -- Add other POIs (dungeons, caves, etc) - but skip homebase, we'll add it near player
     for _, poi in ipairs(worldData.pointsOfInterest) do
-        table.insert(self.pointsOfInterest, {
-            x = poi.x,  -- Already in pixel coordinates from worldgen
-            y = poi.y,  -- Already in pixel coordinates from worldgen
-            radius = poi.radius or 18,
-            name = poi.name,
-            message = poi.message,
-            discovered = false,
-            color = poi.color,
-            levelType = poi.levelType,  -- Use levelType, not type
-            levelSeed = poi.levelSeed or math.random(10000, 99999),
-            visited = false
-        })
+        if poi.levelType ~= "homebase" then
+            table.insert(self.pointsOfInterest, {
+                x = poi.x,
+                y = poi.y,
+                radius = poi.radius or 18,
+                name = poi.name,
+                message = poi.message,
+                discovered = false,
+                color = poi.color,
+                levelType = poi.levelType,
+                levelSeed = poi.levelSeed or math.random(10000, 99999),
+                visited = false
+            })
+        end
     end
 
     -- Find a valid starting position (on land, preferably near a town)
     local startX, startY = self:findStartPosition()
     self.player.x = startX
     self.player.y = startY
+
+    -- Place home base right next to player start (like the car)
+    self:placeHomeBase(startX, startY)
 
     -- Place vehicle near starting position (find a highway tile if possible)
     self:placeVehicle(startX, startY)
@@ -323,7 +329,10 @@ function WorldMap:findStartPosition()
     -- Try to start near the first town
     if #self.towns > 0 then
         local town = self.towns[1]
-        return town.worldX + 50, town.worldY + 50
+        -- Use town.x/y (from worldgen) with fallback to worldX/worldY
+        local tx = town.x or town.worldX
+        local ty = town.y or town.worldY
+        return tx + 50, ty + 50
     end
 
     -- Otherwise find any land tile
@@ -398,6 +407,28 @@ function WorldMap:placeVehicle(nearX, nearY)
     self.vehicle.y = nearY
     self.vehicle.placed = true
     self.vehicle.direction = "right"
+end
+
+function WorldMap:placeHomeBase(nearX, nearY)
+    -- Place home base POI directly next to player start
+    local ts = self.world.tileSize
+    local homeX = nearX - ts  -- One tile to the left of player
+    local homeY = nearY
+
+    -- Add home base as first POI (so it appears prominently)
+    table.insert(self.pointsOfInterest, 1, {
+        x = homeX,
+        y = homeY,
+        radius = 20,
+        name = "Home Base",
+        message = "Your home base. Build and store your treasures here.",
+        discovered = true,  -- Always discovered from the start
+        color = {0.9, 0.7, 0.4},
+        levelType = "homebase",
+        levelSeed = self.worldData and self.worldData.seed or os.time(),
+        visited = false,
+        isHomeBase = true
+    })
 end
 
 -- Helper function alias from Utils module
@@ -533,13 +564,12 @@ function WorldMap:enterLevel(poi)
     -- Use Contra-style shooter for the portal
     if poi.levelType == "portal" then
         stateModule = require "states.contra"
-    -- Use base building for home base and exploration areas
-    elseif poi.levelType == "homebase" or poi.levelType == "ruins" or
-           poi.levelType == "cave" or poi.levelType == "forest" or
-           poi.levelType == "oasis" then
+    -- Use base building only for home base
+    elseif poi.levelType == "homebase" then
         stateModule = require "states.basebuilding"
+    -- All other POIs use dungeon state
     else
-        stateModule = require "states.level"
+        stateModule = require "states.dungeon"
     end
 
     local newState = {}

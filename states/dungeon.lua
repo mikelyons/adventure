@@ -1,4 +1,4 @@
-local Level = {}
+local Dungeon = {}
 local Sprites = require "sprites"
 local Color = require("color")
 local Utils = require("utils")
@@ -6,7 +6,7 @@ local Utils = require("utils")
 -- Helper function alias from Utils module
 local clamp = Utils.clamp
 
-function Level:load()
+function Dungeon:load()
     -- Player state
     self.player = {
         x = 400,
@@ -70,7 +70,7 @@ function Level:load()
     self.nearEntrance = false
 end
 
-function Level:enter()
+function Dungeon:enter()
     if self.poiData then
         self.levelType = self.poiData.levelType or "ruins"
         self.levelName = self.poiData.name or "Unknown"
@@ -100,7 +100,7 @@ function Level:enter()
     self.player.y = self.level.height - ts - 30
 end
 
-function Level:generateLevel()
+function Dungeon:generateLevel()
     if self.levelType == "ruins" then
         self:generateRuins()
     elseif self.levelType == "cave" then
@@ -117,7 +117,7 @@ function Level:generateLevel()
 end
 
 -- RUINS GENERATION --
-function Level:generateRuins()
+function Dungeon:generateRuins()
     self.tiles = {}
     local scale = 0.15
 
@@ -177,7 +177,7 @@ function Level:generateRuins()
 end
 
 -- CAVE GENERATION --
-function Level:generateCave()
+function Dungeon:generateCave()
     self.tiles = {}
     local scale = 0.12
 
@@ -234,7 +234,7 @@ function Level:generateCave()
 end
 
 -- FOREST GENERATION --
-function Level:generateForest()
+function Dungeon:generateForest()
     self.tiles = {}
     local scale = 0.1
 
@@ -296,7 +296,7 @@ function Level:generateForest()
 end
 
 -- OASIS GENERATION --
-function Level:generateOasis()
+function Dungeon:generateOasis()
     self.tiles = {}
 
     for row = 1, self.level.rows do
@@ -354,7 +354,7 @@ function Level:generateOasis()
 end
 
 -- PORTAL GENERATION --
-function Level:generatePortal()
+function Dungeon:generatePortal()
     self.tiles = {}
     local scale = 0.08
 
@@ -413,7 +413,7 @@ function Level:generatePortal()
     }
 end
 
-function Level:update(dt)
+function Dungeon:update(dt)
     -- Welcome message timer
     if self.showWelcome then
         self.welcomeTimer = self.welcomeTimer + dt
@@ -481,7 +481,7 @@ function Level:update(dt)
     self.camera.y = clamp(self.player.y - screenH / 2, 0, math.max(0, self.level.height - screenH))
 end
 
-function Level:canMoveTo(x, y)
+function Dungeon:canMoveTo(x, y)
     local col = math.floor(x / self.level.tileSize) + 1
     local row = math.floor(y / self.level.tileSize) + 1
 
@@ -498,7 +498,7 @@ function Level:canMoveTo(x, y)
     return true
 end
 
-function Level:checkNPCInteractions()
+function Dungeon:checkNPCInteractions()
     self.nearbyNPC = nil
     self.interactionPrompt = nil
 
@@ -514,7 +514,7 @@ function Level:checkNPCInteractions()
     end
 end
 
-function Level:checkEntranceExit()
+function Dungeon:checkEntranceExit()
     -- Check if player is within the entrance zone at the bottom edge
     local px, py = self.player.x, self.player.y
     local e = self.entrance
@@ -532,7 +532,7 @@ function Level:checkEntranceExit()
     end
 end
 
-function Level:updateDialogue(dt)
+function Dungeon:updateDialogue(dt)
     if not self.dialogue.active then return end
 
     self.dialogue.textTimer = self.dialogue.textTimer + dt
@@ -548,7 +548,7 @@ function Level:updateDialogue(dt)
     end
 end
 
-function Level:startDialogue(npc)
+function Dungeon:startDialogue(npc)
     if not npc or not npc.dialogue then return end
 
     self.dialogue.active = true
@@ -563,7 +563,7 @@ function Level:startDialogue(npc)
     end
 end
 
-function Level:draw()
+function Dungeon:draw()
     local screenW, screenH = love.graphics.getDimensions()
     local ts = self.level.tileSize
 
@@ -668,7 +668,7 @@ function Level:draw()
     end
 end
 
-function Level:drawWelcomeMessage()
+function Dungeon:drawWelcomeMessage()
     local screenW, screenH = love.graphics.getDimensions()
     local alpha = 1.0
 
@@ -684,7 +684,7 @@ function Level:drawWelcomeMessage()
     love.graphics.printf("Entering: " .. self.levelName, screenW/2 - 190, 100, 380, "center")
 end
 
-function Level:drawDialogueOverlay()
+function Dungeon:drawDialogueOverlay()
     local screenW, screenH = love.graphics.getDimensions()
 
     Color.set(0, 0, 0, 0.7)
@@ -715,7 +715,7 @@ function Level:drawDialogueOverlay()
     end
 end
 
-function Level:keypressed(key)
+function Dungeon:keypressed(key)
     if self.dialogue.active then
         if key == "space" then
             if #self.dialogue.currentText >= #self.dialogue.fullText then
@@ -736,4 +736,4 @@ function Level:keypressed(key)
     end
 end
 
-return Level
+return Dungeon

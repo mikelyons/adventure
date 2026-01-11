@@ -126,8 +126,7 @@ function WorldGen:generate(seed, cols, rows)
     -- Find player start position (on largest continent near a town)
     self:setPlayerStart(world)
 
-    -- Place home base near player start
-    self:placeHomeBase(world)
+    -- Note: Home base is placed in worldmap.lua near actual player spawn position
 
     return world
 end
@@ -729,9 +728,9 @@ end
 
 -- Place home base POI near player start
 function WorldGen:placeHomeBase(world)
-    -- Home base is always placed 2 tiles to the left and 1 tile down from player start
-    local homeX = world.playerStartX - (world.tileSize * 2)
-    local homeY = world.playerStartY + world.tileSize
+    -- Home base is always placed 1 tile to the left of player start (directly adjacent)
+    local homeX = world.playerStartX - world.tileSize
+    local homeY = world.playerStartY
 
     -- Ensure it's within bounds
     homeX = math.max(world.tileSize * 2, math.min(homeX, (world.cols - 2) * world.tileSize))

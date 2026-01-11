@@ -29,14 +29,14 @@ This is a retro-style RPG adventure game built with Love2D (LÖVE) framework in 
 - `data/palettes.lua` - **All color palettes** (terrain, character, town, NPC, etc.)
 
 ### State Files (in `states/`)
-- `worldmap.lua` - Main overworld exploration
+- `worldmap.lua` - Main overworld exploration, POI management, home base placement
 - `town.lua` - Town exploration with NPCs and buildings
 - `buildinginterior.lua` - Metroid-style sidescroller interiors
 - `inventoryscreen.lua` - Inventory UI with paperdoll
 - `pause.lua` - Pause menu with options
-- `basebuilding.lua` - Base building mode
-- `contra.lua` - Side-scrolling shooter mode
-- `level.lua` - Dungeon exploration
+- `basebuilding.lua` - Base building mode (used only for Home Base POI)
+- `contra.lua` - Side-scrolling shooter mode (used for portal POIs)
+- `dungeon.lua` - Dungeon exploration (used for all other POIs: ruins, cave, forest, etc.)
 
 ## Common Patterns
 
@@ -161,8 +161,19 @@ love .
 - Grid inventory system (Diablo 2-style)
 - Save/load system with multiple slots
 - Controls help panel (toggle with ?)
-- Base building mode
-- Contra-style side-scrolling shooter mode
+- Home Base - Player's personal building area that saves/loads with game
+- Dungeons - Explorable POIs (ruins, caves, forests, etc.)
+- Contra-style side-scrolling shooter mode (portal POIs)
+
+## POI (Point of Interest) System
+
+POIs are locations on the world map the player can enter:
+- **Home Base** - Spawns next to player start, uses basebuilding state, saves buildings to `homebase.lua`
+- **Towns** - Use town state with NPCs and buildings
+- **Portals** - Use contra (shooter) state
+- **All other POIs** (ruins, cave, forest, oasis, dungeon, tower, shrine) - Use dungeon state
+
+Home base is placed in `worldmap.lua` (not worldgen) to ensure it spawns adjacent to the player's actual starting position.
 
 ## File Locations
 
@@ -178,3 +189,9 @@ love .
 - The game uses a pixel-art aesthetic with 24x24 tile size in towns
 - World map uses 32x32 tile size
 - NPC size is typically 20 pixels
+
+## Development Workflow
+
+- **Testing**: The user will run `love .` to test the game. Do not launch the game automatically.
+- **Git**: Only perform git operations (commit, status, etc.) when explicitly asked by the user.
+- **State leave()**: When a state is popped via `Gamestate:pop()`, the `leave()` function is called if it exists. Use this for cleanup/saving.
