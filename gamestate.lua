@@ -13,6 +13,10 @@ function Gamestate:push(state)
 end
 
 function Gamestate:pop()
+    local state = self.stack[#self.stack]
+    if state and state.leave then
+        state:leave()
+    end
     table.remove(self.stack)
 end
 

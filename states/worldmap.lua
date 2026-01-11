@@ -216,6 +216,11 @@ function WorldMap:loadWorldFromData()
                 end
             end
 
+            -- Home base is always discovered
+            if poi.isHomeBase or poi.levelType == "homebase" then
+                discovered = true
+            end
+
             table.insert(self.pointsOfInterest, {
                 x = poi.x,  -- Already in pixel coordinates from worldgen
                 y = poi.y,  -- Already in pixel coordinates from worldgen
@@ -226,7 +231,8 @@ function WorldMap:loadWorldFromData()
                 color = poi.color,
                 levelType = poi.levelType,  -- Use levelType, not type
                 levelSeed = poi.levelSeed or math.random(10000, 99999),
-                visited = visited
+                visited = visited,
+                isHomeBase = poi.isHomeBase or (poi.levelType == "homebase")
             })
         end
 
@@ -527,9 +533,10 @@ function WorldMap:enterLevel(poi)
     -- Use Contra-style shooter for the portal
     if poi.levelType == "portal" then
         stateModule = require "states.contra"
-    -- Use base building for exploration areas
-    elseif poi.levelType == "ruins" or poi.levelType == "cave" or
-           poi.levelType == "forest" or poi.levelType == "oasis" then
+    -- Use base building for home base and exploration areas
+    elseif poi.levelType == "homebase" or poi.levelType == "ruins" or
+           poi.levelType == "cave" or poi.levelType == "forest" or
+           poi.levelType == "oasis" then
         stateModule = require "states.basebuilding"
     else
         stateModule = require "states.level"
@@ -543,6 +550,8 @@ function WorldMap:enterLevel(poi)
     newState.townData = self.townData
     newState.optionsData = self.optionsData
     newState.poiData = poi
+    -- Mark as home base for save/load functionality
+    newState.isHomeBase = (poi.levelType == "homebase")
     Gamestate:push(newState)
 end
 

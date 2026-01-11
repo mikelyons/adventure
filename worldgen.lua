@@ -126,6 +126,9 @@ function WorldGen:generate(seed, cols, rows)
     -- Find player start position (on largest continent near a town)
     self:setPlayerStart(world)
 
+    -- Place home base near player start
+    self:placeHomeBase(world)
+
     return world
 end
 
@@ -722,6 +725,40 @@ function WorldGen:setPlayerStart(world)
             world.playerStartY = world.rows * world.tileSize / 2
         end
     end
+end
+
+-- Place home base POI near player start
+function WorldGen:placeHomeBase(world)
+    -- Home base is always placed 2 tiles to the left and 1 tile down from player start
+    local homeX = world.playerStartX - (world.tileSize * 2)
+    local homeY = world.playerStartY + world.tileSize
+
+    -- Ensure it's within bounds
+    homeX = math.max(world.tileSize * 2, math.min(homeX, (world.cols - 2) * world.tileSize))
+    homeY = math.max(world.tileSize * 2, math.min(homeY, (world.rows - 2) * world.tileSize))
+
+    -- Store home base position in world for save/load
+    world.homeBaseX = homeX
+    world.homeBaseY = homeY
+
+    -- Add home base as a special POI (insert at beginning so it's first)
+    table.insert(world.pointsOfInterest, 1, {
+        x = homeX,
+        y = homeY,
+        row = math.floor(homeY / world.tileSize),
+        col = math.floor(homeX / world.tileSize),
+        radius = 20,
+        name = "Home Base",
+        message = "Your home base. Build and store your treasures here.",
+        discovered = true,  -- Always discovered from the start
+        color = {0.9, 0.7, 0.4},  -- Warm house color
+        levelType = "homebase",
+        levelSeed = world.seed,  -- Use world seed for consistency
+        visited = false,
+        isHomeBase = true  -- Special flag to identify this POI
+    })
+
+    print("Home Base placed at: " .. homeX .. ", " .. homeY)
 end
 
 -- Helper functions

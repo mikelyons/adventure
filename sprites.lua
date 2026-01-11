@@ -71,6 +71,7 @@ function Sprites:init()
     self.images.poi_oasis = self:createPOIMarker("oasis")
     self.images.poi_portal = self:createPOIMarker("portal")
     self.images.poi_town = self:createPOIMarker("town")
+    self.images.poi_homebase = self:createPOIMarker("homebase")
 
     -- Player sprite
     self.images.player = self:createPlayerSprite()
@@ -1203,6 +1204,7 @@ function Sprites:createPOIMarker(poiType)
         oasis = {{0.45, 0.80, 0.85}, {0.90, 0.80, 0.55}, {0.70, 0.60, 0.40}},
         portal = {{0.85, 0.55, 0.95}, {0.65, 0.35, 0.80}, {0.45, 0.20, 0.60}},
         town = {{0.90, 0.70, 0.50}, {0.70, 0.50, 0.35}, {0.50, 0.35, 0.22}},
+        homebase = {{0.95, 0.80, 0.50}, {0.80, 0.60, 0.35}, {0.60, 0.45, 0.25}},
     }
 
     local c = colors[poiType] or colors.town
@@ -1274,6 +1276,38 @@ function Sprites:createPOIMarker(poiType)
             setPixel(data, 6, y, dark)
             setPixel(data, 9, y, dark)
         end
+    elseif poiType == "homebase" then
+        -- House icon with roof and chimney
+        -- Roof (triangle)
+        setPixel(data, 7, 4, dark)
+        setPixel(data, 8, 4, dark)
+        setPixel(data, 6, 5, dark)
+        setPixel(data, 7, 5, {0.7, 0.4, 0.3})  -- Roof shingle color
+        setPixel(data, 8, 5, {0.7, 0.4, 0.3})
+        setPixel(data, 9, 5, dark)
+        setPixel(data, 5, 6, dark)
+        setPixel(data, 10, 6, dark)
+        -- Walls
+        for y = 7, 10 do
+            setPixel(data, 5, y, dark)
+            setPixel(data, 10, y, dark)
+        end
+        -- Fill house body
+        for y = 7, 9 do
+            for x = 6, 9 do
+                setPixel(data, x, y, {0.85, 0.75, 0.55})  -- Wall color
+            end
+        end
+        -- Door
+        setPixel(data, 7, 8, {0.45, 0.30, 0.18})
+        setPixel(data, 7, 9, {0.45, 0.30, 0.18})
+        setPixel(data, 8, 8, {0.45, 0.30, 0.18})
+        setPixel(data, 8, 9, {0.45, 0.30, 0.18})
+        -- Window
+        setPixel(data, 9, 7, {0.6, 0.8, 0.95})
+        -- Chimney
+        setPixel(data, 10, 3, {0.5, 0.35, 0.25})
+        setPixel(data, 10, 4, {0.5, 0.35, 0.25})
     end
 
     return love.graphics.newImage(data)

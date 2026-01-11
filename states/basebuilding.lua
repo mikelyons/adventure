@@ -182,8 +182,202 @@ function BaseBuilding:enter()
         shoesColor = "black"
     })
 
-    -- Generate initial terrain based on level type
-    self:generateTerrain()
+    -- For home base, try to load saved data, otherwise generate fresh
+    if self.isHomeBase then
+        print("[HomeBase] Entering home base mode")
+        print("[HomeBase] saveDir: " .. tostring(self.saveDir))
+        local loaded = self:loadHomeBaseData()
+        if not loaded then
+            -- Generate a nice starting area for home base
+            self:generateHomeBaseTerrain()
+        end
+    else
+        -- Generate initial terrain based on level type
+        self:generateTerrain()
+    end
+end
+
+function BaseBuilding:leave()
+    -- Save home base data when leaving
+    if self.isHomeBase then
+        print("[HomeBase] Leaving home base, saving data...")
+        self:saveHomeBaseData()
+    end
+end
+
+function BaseBuilding:generateHomeBaseTerrain()
+    -- Clear existing
+    for y = 1, self.rows do
+        for x = 1, self.cols do
+            self.floors[y][x] = nil
+            self.objects[y][x] = nil
+        end
+    end
+
+    -- Add scattered trees and resources around the edges
+    for y = 1, self.rows do
+        for x = 1, self.cols do
+            -- Distance from center
+            local cx, cy = self.cols / 2, self.rows / 2
+            local dist = math.sqrt((x - cx)^2 + (y - cy)^2)
+
+            -- More trees/resources toward edges
+            local chance = dist / 30 * 0.15
+            local r = love.math.random()
+            if r < chance * 0.6 then
+                self.objects[y][x] = "tree"
+            elseif r < chance * 0.8 then
+                self.objects[y][x] = "rock"
+            elseif r < chance then
+                self.objects[y][x] = "bush"
+            end
+        end
+    end
+
+    -- Clear a large spawn area in center for building
+    local cx, cy = math.floor(self.cols / 2), math.floor(self.rows / 2)
+    for dy = -5, 5 do
+        for dx = -5, 5 do
+            local gx, gy = cx + dx, cy + dy
+            if gx >= 1 and gx <= self.cols and gy >= 1 and gy <= self.rows then
+                self.objects[gy][gx] = nil
+                -- Add a small grass floor area in the very center
+                if math.abs(dx) <= 2 and math.abs(dy) <= 2 then
+                    self.floors[gy][gx] = "grass_path"
+                end
+            end
+        end
+    end
+
+    -- Give extra starting resources for home base
+    self.resources.wood = 100
+    self.resources.stone = 60
+    self.resources.metal = 20
+    self.resources.cloth = 30
+end
+
+function BaseBuilding:saveHomeBaseData()
+    if not self.saveDir then
+        print("[HomeBase] ERROR: No saveDir set, cannot save!")
+        return
+    end
+
+    print("[HomeBase] Saving to: " .. self.saveDir .. "/homebase.lua")
+
+    -- Serialize floors and objects grids
+    local homeData = {
+        floors = {},
+        objects = {},
+        resources = self.resources
+    }
+
+    -- Only save non-nil cells to reduce file size
+    for y = 1, self.rows do
+        for x = 1, self.cols do
+            if self.floors[y][x] then
+                table.insert(homeData.floors, {x = x, y = y, type = self.floors[y][x]})
+            end
+            if self.objects[y][x] then
+                table.insert(homeData.objects, {x = x, y = y, type = self.objects[y][x]})
+            end
+        end
+    end
+
+    -- Save to file
+    local content = "return " .. self:serializeHomeData(homeData) .. "\n"
+    local success = love.filesystem.write(self.saveDir .. "/homebase.lua", content)
+    if success then
+        print("Home base saved to: " .. self.saveDir .. "/homebase.lua")
+    end
+end
+
+function BaseBuilding:loadHomeBaseData()
+    if not self.saveDir then
+        print("[HomeBase] ERROR: No saveDir set, cannot load!")
+        return false
+    end
+
+    local path = self.saveDir .. "/homebase.lua"
+    print("[HomeBase] Attempting to load from: " .. path)
+
+    if not love.filesystem.getInfo(path) then
+        print("[HomeBase] No save file found, generating fresh terrain")
+        return false
+    end
+
+    local content = love.filesystem.read(path)
+    if not content then return false end
+
+    local fn, err = loadstring(content)
+    if not fn then
+        print("Error loading home base: " .. tostring(err))
+        return false
+    end
+
+    local homeData = fn()
+    if not homeData then return false end
+
+    -- Clear grids first
+    for y = 1, self.rows do
+        for x = 1, self.cols do
+            self.floors[y][x] = nil
+            self.objects[y][x] = nil
+        end
+    end
+
+    -- Restore floors
+    if homeData.floors then
+        for _, cell in ipairs(homeData.floors) do
+            if cell.y >= 1 and cell.y <= self.rows and cell.x >= 1 and cell.x <= self.cols then
+                self.floors[cell.y][cell.x] = cell.type
+            end
+        end
+    end
+
+    -- Restore objects
+    if homeData.objects then
+        for _, cell in ipairs(homeData.objects) do
+            if cell.y >= 1 and cell.y <= self.rows and cell.x >= 1 and cell.x <= self.cols then
+                self.objects[cell.y][cell.x] = cell.type
+            end
+        end
+    end
+
+    -- Restore resources
+    if homeData.resources then
+        self.resources = homeData.resources
+    end
+
+    print("Home base loaded from: " .. path)
+    return true
+end
+
+function BaseBuilding:serializeHomeData(data, indent)
+    indent = indent or ""
+    local result = "{\n"
+    local nextIndent = indent .. "  "
+
+    for key, value in pairs(data) do
+        local keyStr
+        if type(key) == "number" then
+            keyStr = ""
+        else
+            keyStr = key .. " = "
+        end
+
+        if type(value) == "string" then
+            result = result .. nextIndent .. keyStr .. "\"" .. value .. "\",\n"
+        elseif type(value) == "boolean" then
+            result = result .. nextIndent .. keyStr .. tostring(value) .. ",\n"
+        elseif type(value) == "table" then
+            result = result .. nextIndent .. keyStr .. self:serializeHomeData(value, nextIndent) .. ",\n"
+        else
+            result = result .. nextIndent .. keyStr .. tostring(value) .. ",\n"
+        end
+    end
+
+    result = result .. indent .. "}"
+    return result
 end
 
 function BaseBuilding:generateTerrain()
