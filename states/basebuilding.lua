@@ -5,49 +5,17 @@
 local BaseBuilding = {}
 local Paperdoll = require "paperdoll"
 local Color = require("color")
+local Utils = require("utils")
 
-local function clamp(v, min, max)
-    return v < min and min or (v > max and max or v)
-end
+-- Helper function aliases from Utils module
+local clamp = Utils.clamp
+local lerp = Utils.lerp
+local lerpColor = Utils.lerpColor
+local shouldDither = Utils.shouldDither
+local Palettes = require("data.palettes")
 
-local function lerp(a, b, t)
-    return a + (b - a) * t
-end
-
-local function lerpColor(c1, c2, t)
-    return {lerp(c1[1], c2[1], t), lerp(c1[2], c2[2], t), lerp(c1[3], c2[3], t)}
-end
-
--- Dithering check for retro shading
-local function shouldDither(x, y, threshold)
-    local pattern = {
-        {0.0, 0.5, 0.125, 0.625},
-        {0.75, 0.25, 0.875, 0.375},
-        {0.1875, 0.6875, 0.0625, 0.5625},
-        {0.9375, 0.4375, 0.8125, 0.3125}
-    }
-    return pattern[(math.floor(y) % 4) + 1][(math.floor(x) % 4) + 1] < threshold
-end
-
--- Color palettes for terrain types
-local PALETTES = {
-    ruins = {
-        ground = {{0.42, 0.38, 0.32}, {0.35, 0.32, 0.28}, {0.50, 0.45, 0.38}},
-        accent = {{0.55, 0.48, 0.38}, {0.48, 0.42, 0.35}}
-    },
-    cave = {
-        ground = {{0.28, 0.25, 0.30}, {0.22, 0.20, 0.25}, {0.35, 0.32, 0.38}},
-        accent = {{0.45, 0.40, 0.52}, {0.38, 0.35, 0.45}}
-    },
-    forest = {
-        ground = {{0.32, 0.42, 0.28}, {0.28, 0.38, 0.25}, {0.38, 0.48, 0.32}},
-        accent = {{0.25, 0.35, 0.22}, {0.30, 0.40, 0.28}}
-    },
-    oasis = {
-        ground = {{0.85, 0.78, 0.55}, {0.78, 0.72, 0.50}, {0.92, 0.85, 0.62}},
-        accent = {{0.75, 0.68, 0.48}, {0.82, 0.75, 0.55}}
-    }
-}
+-- Import palettes from centralized location
+local PALETTES = Palettes.basebuilding
 
 -- Building definitions
 local BUILDINGS = {

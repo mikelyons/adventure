@@ -293,29 +293,38 @@ function LoadSave:draw()
         -- Y/N buttons
         local yX = confirmX + confirmW / 2 - 80
         local btnY = confirmY + 72
+        local isYHovered = self.hoveredConfirmYes
+        local isNHovered = self.hoveredConfirmNo
+
+        -- Store confirmation button clickable areas
+        self.confirmYesArea = {x = yX, y = btnY, w = 100, h = 26}
+        self.confirmNoArea = {x = yX + 130, y = btnY, w = 100, h = 26}
 
         -- Y button (Delete)
-        Color.set(0.40, 0.20, 0.20)
-        love.graphics.rectangle("fill", yX, btnY, 50, 26, 4, 4)
-        Color.set(0.85, 0.45, 0.45)
-        love.graphics.setLineWidth(1)
-        love.graphics.rectangle("line", yX, btnY, 50, 26, 4, 4)
+        local yBgColor = isYHovered and {0.55, 0.25, 0.25} or {0.40, 0.20, 0.20}
+        Color.set(yBgColor[1], yBgColor[2], yBgColor[3])
+        love.graphics.rectangle("fill", yX, btnY, 100, 26, 4, 4)
+        local yBorderColor = isYHovered and {1, 0.55, 0.55} or {0.85, 0.45, 0.45}
+        Color.set(yBorderColor[1], yBorderColor[2], yBorderColor[3])
+        love.graphics.setLineWidth(isYHovered and 2 or 1)
+        love.graphics.rectangle("line", yX, btnY, 100, 26, 4, 4)
         Color.set(1, 0.75, 0.75)
-        love.graphics.print("Y", yX + 20, btnY + 5)
-        Color.set(0.75, 0.60, 0.60)
-        love.graphics.print("Delete", yX + 55, btnY + 5)
+        love.graphics.print("Y  Delete", yX + 18, btnY + 5)
 
         -- N button (Cancel)
         local nX = yX + 130
-        Color.set(0.25, 0.30, 0.25)
-        love.graphics.rectangle("fill", nX, btnY, 50, 26, 4, 4)
-        Color.set(0.55, 0.70, 0.55)
-        love.graphics.setLineWidth(1)
-        love.graphics.rectangle("line", nX, btnY, 50, 26, 4, 4)
+        local nBgColor = isNHovered and {0.30, 0.40, 0.30} or {0.25, 0.30, 0.25}
+        Color.set(nBgColor[1], nBgColor[2], nBgColor[3])
+        love.graphics.rectangle("fill", nX, btnY, 100, 26, 4, 4)
+        local nBorderColor = isNHovered and {0.70, 0.90, 0.70} or {0.55, 0.70, 0.55}
+        Color.set(nBorderColor[1], nBorderColor[2], nBorderColor[3])
+        love.graphics.setLineWidth(isNHovered and 2 or 1)
+        love.graphics.rectangle("line", nX, btnY, 100, 26, 4, 4)
         Color.set(0.85, 1, 0.85)
-        love.graphics.print("N", nX + 20, btnY + 5)
-        Color.set(0.65, 0.75, 0.65)
-        love.graphics.print("Cancel", nX + 55, btnY + 5)
+        love.graphics.print("N  Cancel", nX + 18, btnY + 5)
+    else
+        self.confirmYesArea = nil
+        self.confirmNoArea = nil
     end
 
     -- Controls hint
@@ -363,17 +372,31 @@ function LoadSave:draw()
         love.graphics.print("Delete", panelX + 335, hintY + 3)
     end
 
-    -- ESC key
-    Color.set(0.35, 0.25, 0.25)
-    love.graphics.rectangle("fill", panelX + panelW - 130, hintY, 45, 22, 3, 3)
-    Color.set(0.75, 0.55, 0.55)
-    love.graphics.setLineWidth(1)
-    love.graphics.rectangle("line", panelX + panelW - 130, hintY, 45, 22, 3, 3)
-    Color.set(1, 0.85, 0.85)
-    love.graphics.print("ESC", panelX + panelW - 120, hintY + 3)
+    -- Back button (clickable)
+    local backBtnX = panelX + panelW - 130
+    local backBtnY = hintY - 2
+    local backBtnW = 110
+    local backBtnH = 26
+    local isBackHovered = self.hoveredBack
 
-    Color.set(0.45, 0.50, 0.60)
-    love.graphics.print("Back", panelX + panelW - 75, hintY + 3)
+    -- Store back button clickable area
+    table.insert(self.clickableAreas, {
+        type = "back",
+        x = backBtnX,
+        y = backBtnY,
+        w = backBtnW,
+        h = backBtnH
+    })
+
+    local backBgColor = isBackHovered and {0.45, 0.30, 0.30} or {0.35, 0.25, 0.25}
+    Color.set(backBgColor[1], backBgColor[2], backBgColor[3])
+    love.graphics.rectangle("fill", backBtnX, backBtnY, backBtnW, backBtnH, 3, 3)
+    local backBorderColor = isBackHovered and {0.95, 0.70, 0.70} or {0.75, 0.55, 0.55}
+    Color.set(backBorderColor[1], backBorderColor[2], backBorderColor[3])
+    love.graphics.setLineWidth(isBackHovered and 2 or 1)
+    love.graphics.rectangle("line", backBtnX, backBtnY, backBtnW, backBtnH, 3, 3)
+    Color.set(1, 0.85, 0.85)
+    love.graphics.print("ESC  Back", backBtnX + 18, backBtnY + 5)
 end
 
 function LoadSave:keypressed(key)
@@ -479,6 +502,26 @@ end
 function LoadSave:mousemoved(x, y)
     self.hoveredItem = nil
     self.hoveredDelete = nil
+    self.hoveredBack = false
+    self.hoveredConfirmYes = false
+    self.hoveredConfirmNo = false
+
+    -- Handle confirmation dialog hover
+    if self.confirmDelete then
+        if self.confirmYesArea then
+            local area = self.confirmYesArea
+            if x >= area.x and x <= area.x + area.w and y >= area.y and y <= area.y + area.h then
+                self.hoveredConfirmYes = true
+            end
+        end
+        if self.confirmNoArea then
+            local area = self.confirmNoArea
+            if x >= area.x and x <= area.x + area.w and y >= area.y and y <= area.y + area.h then
+                self.hoveredConfirmNo = true
+            end
+        end
+        return
+    end
 
     -- Check if mouse is over any clickable area
     for _, area in ipairs(self.clickableAreas) do
@@ -487,6 +530,8 @@ function LoadSave:mousemoved(x, y)
                 self.hoveredItem = area.index
             elseif area.type == "delete" then
                 self.hoveredDelete = area.index
+            elseif area.type == "back" then
+                self.hoveredBack = true
             end
         end
     end
@@ -495,8 +540,23 @@ end
 function LoadSave:mousepressed(x, y, button)
     if button ~= 1 then return end  -- Only left click
 
-    -- Handle delete confirmation first
+    -- Handle delete confirmation clicks
     if self.confirmDelete then
+        if self.confirmYesArea then
+            local area = self.confirmYesArea
+            if x >= area.x and x <= area.x + area.w and y >= area.y and y <= area.y + area.h then
+                self:deleteSelectedSave()
+                self.confirmDelete = false
+                return
+            end
+        end
+        if self.confirmNoArea then
+            local area = self.confirmNoArea
+            if x >= area.x and x <= area.x + area.w and y >= area.y and y <= area.y + area.h then
+                self.confirmDelete = false
+                return
+            end
+        end
         return
     end
 
@@ -511,6 +571,8 @@ function LoadSave:mousepressed(x, y, button)
                 -- Trigger delete confirmation
                 self.selected = area.index
                 self.confirmDelete = true
+            elseif area.type == "back" then
+                Gamestate:pop()
             end
             return
         end

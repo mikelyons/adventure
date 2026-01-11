@@ -1,12 +1,10 @@
 local Level = {}
 local Sprites = require "sprites"
 local Color = require("color")
+local Utils = require("utils")
 
-local function clamp(value, minValue, maxValue)
-    if value < minValue then return minValue end
-    if value > maxValue then return maxValue end
-    return value
-end
+-- Helper function alias from Utils module
+local clamp = Utils.clamp
 
 function Level:load()
     -- Player state

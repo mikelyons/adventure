@@ -23,17 +23,91 @@ This is a retro-style RPG adventure game built with Love2D (LÖVE) framework in 
 - `sprites.lua` - Procedural sprite generation
 - `color.lua` - Love2D version color compatibility
 
+### Shared Modules (IMPORTANT - Use These!)
+- `utils.lua` - **Shared math/helper functions** (clamp, lerp, lerpColor, hash, shouldDither, simpleNoise, setPixel)
+- `config.lua` - **Centralized game constants** (tile sizes, speeds, grid dimensions)
+- `data/palettes.lua` - **All color palettes** (terrain, character, town, NPC, etc.)
+
 ### State Files (in `states/`)
-- `worldmap.lua` - Main overworld exploration (largest file)
+- `worldmap.lua` - Main overworld exploration
 - `town.lua` - Town exploration with NPCs and buildings
 - `buildinginterior.lua` - Metroid-style sidescroller interiors
 - `inventoryscreen.lua` - Inventory UI with paperdoll
 - `pause.lua` - Pause menu with options
+- `basebuilding.lua` - Base building mode
+- `contra.lua` - Side-scrolling shooter mode
+- `level.lua` - Dungeon exploration
 
 ## Common Patterns
 
+### Using Shared Utilities (REQUIRED)
+**Always use the Utils module for common math functions. Never redefine these locally:**
+
+```lua
+local Utils = require("utils")
+
+-- Use these aliases for cleaner code
+local clamp = Utils.clamp
+local lerp = Utils.lerp
+local lerpColor = Utils.lerpColor
+local shouldDither = Utils.shouldDither
+local simpleNoise = Utils.simpleNoise
+local hash = Utils.hash
+local setPixel = Utils.setPixel
+
+-- Example usage
+local value = clamp(x, 0, 100)
+local color = lerpColor(colorA, colorB, 0.5)
+if shouldDither(px, py, 0.4) then ... end
+```
+
+### Using Centralized Palettes (REQUIRED)
+**Always use palettes from data/palettes.lua. Never define colors inline:**
+
+```lua
+local Palettes = require("data.palettes")
+
+-- Available palette categories:
+-- Palettes.terrain     - World map terrain colors (grass, water, sand, etc.)
+-- Palettes.character   - Skin tones, hair colors, clothing colors
+-- Palettes.town        - Town tile colors (water, grass, path, building, market)
+-- Palettes.npc         - NPC type colors (elder, merchant, guard, villager)
+-- Palettes.basebuilding - Base building terrain palettes
+-- Palettes.contra      - SNES-style game palettes
+-- Palettes.poi         - Point of interest marker colors
+
+-- Example usage
+local grassPalette = Palettes.terrain.grass
+local waterColor = Palettes.town.water.base[1]
+local skinTone = Palettes.character.skinTones.medium
+```
+
+### Using Game Configuration
+**Use config.lua for game constants instead of hardcoding values:**
+
+```lua
+local Config = require("config")
+
+-- Available configuration sections:
+-- Config.world      - World map settings (tileSize, scale)
+-- Config.town       - Town settings (tileSize, npcSize, defaultSize)
+-- Config.player     - Player settings (walkSpeed, runSpeed, size)
+-- Config.vehicle    - Vehicle settings (speed, highwaySpeed)
+-- Config.inventory  - Inventory grid settings
+-- Config.ui         - UI timing settings (messageDuration, fadeTime)
+-- Config.time       - Game clock settings
+-- Config.level      - Dungeon settings
+-- Config.contra     - Side-scroller settings
+-- Config.paperdoll  - Character sprite settings
+```
+
 ### Color Compatibility
 Use `Color.set(r, g, b, a)` instead of `love.graphics.setColor()` for compatibility across Love2D versions.
+
+```lua
+local Color = require("color")
+Color.set(1, 0, 0, 1)  -- Set color to red
+```
 
 ### State Transitions
 ```lua
@@ -49,6 +123,23 @@ Gamestate:pop()
 
 ### Drawing Tiles
 Tiles are drawn pixel-by-pixel for retro aesthetic. Each tile type has a dedicated draw function (e.g., `drawGrassTile`, `drawRoadTile`).
+
+## Best Practices
+
+### DO:
+- Use `Utils` module for math functions (clamp, lerp, lerpColor, etc.)
+- Use `Palettes` module for all color definitions
+- Use `Config` module for game constants
+- Use `Color.set()` for setting graphics colors
+- Keep state files focused on their specific gameplay mode
+- Add new palettes to `data/palettes.lua` under the appropriate category
+- Add new constants to `config.lua` under the appropriate section
+
+### DON'T:
+- Define local clamp/lerp/lerpColor/dither functions (use Utils instead)
+- Hardcode color values in state files (add to Palettes instead)
+- Hardcode game constants like tile sizes or speeds (add to Config instead)
+- Use `love.graphics.setColor()` directly (use Color.set instead)
 
 ## Development Commands
 
@@ -70,11 +161,16 @@ love .
 - Grid inventory system (Diablo 2-style)
 - Save/load system with multiple slots
 - Controls help panel (toggle with ?)
+- Base building mode
+- Contra-style side-scrolling shooter mode
 
 ## File Locations
 
 - Save files: `love.filesystem.getSaveDirectory()/saves/`
 - Config: Uses Love2D's save directory
+- Palettes: `data/palettes.lua`
+- Utilities: `utils.lua`
+- Game Config: `config.lua`
 
 ## Notes
 

@@ -2,162 +2,20 @@
 -- High-fidelity retro style graphics
 
 local Sprites = {}
+local Utils = require("utils")
+local Palettes = require("data.palettes")
 
 Sprites.tileSize = 16
 Sprites.scale = 2
 
--- Rich color palettes
-local palettes = {
-    -- Grass - lush greens with highlights
-    grass = {
-        dark = {0.12, 0.32, 0.14},
-        mid = {0.18, 0.45, 0.20},
-        light = {0.25, 0.55, 0.28},
-        highlight = {0.35, 0.65, 0.32},
-        flower1 = {0.85, 0.35, 0.40},
-        flower2 = {0.95, 0.85, 0.35},
-        flower3 = {0.70, 0.45, 0.85},
-    },
-    -- Water - deep blues with shimmer
-    water = {
-        deep = {0.08, 0.18, 0.42},
-        dark = {0.12, 0.28, 0.55},
-        mid = {0.18, 0.40, 0.68},
-        light = {0.28, 0.52, 0.78},
-        highlight = {0.55, 0.75, 0.92},
-        foam = {0.85, 0.92, 0.98},
-    },
-    -- Sand - warm beach tones
-    sand = {
-        dark = {0.68, 0.55, 0.35},
-        mid = {0.82, 0.72, 0.48},
-        light = {0.92, 0.85, 0.62},
-        highlight = {0.98, 0.95, 0.78},
-        pebble = {0.55, 0.48, 0.38},
-    },
-    -- Stone - varied grays
-    stone = {
-        dark = {0.28, 0.26, 0.25},
-        mid = {0.45, 0.43, 0.42},
-        light = {0.58, 0.56, 0.55},
-        highlight = {0.72, 0.70, 0.68},
-        moss = {0.35, 0.48, 0.32},
-        crack = {0.18, 0.16, 0.15},
-    },
-    -- Cave - dark purples and blues
-    cave = {
-        void = {0.06, 0.05, 0.10},
-        dark = {0.12, 0.10, 0.18},
-        mid = {0.22, 0.18, 0.28},
-        light = {0.32, 0.28, 0.40},
-        crystal1 = {0.45, 0.75, 0.95},
-        crystal2 = {0.75, 0.45, 0.90},
-        crystal3 = {0.40, 0.95, 0.70},
-        glow = {0.65, 0.85, 1.0},
-    },
-    -- Forest - deep greens and browns
-    forest = {
-        trunk_dark = {0.25, 0.15, 0.08},
-        trunk_mid = {0.38, 0.25, 0.12},
-        trunk_light = {0.52, 0.35, 0.18},
-        leaf_dark = {0.08, 0.28, 0.12},
-        leaf_mid = {0.15, 0.42, 0.18},
-        leaf_light = {0.22, 0.55, 0.25},
-        leaf_highlight = {0.45, 0.72, 0.35},
-    },
-    -- Portal - magical purples
-    portal = {
-        void = {0.12, 0.05, 0.18},
-        dark = {0.35, 0.12, 0.48},
-        mid = {0.55, 0.25, 0.72},
-        light = {0.75, 0.45, 0.88},
-        glow = {0.92, 0.72, 1.0},
-        spark = {1.0, 0.85, 1.0},
-        rune = {0.40, 0.85, 0.95},
-    },
-    -- Ruins - weathered stone
-    ruins = {
-        dark = {0.32, 0.28, 0.25},
-        mid = {0.48, 0.44, 0.40},
-        light = {0.62, 0.58, 0.52},
-        moss = {0.32, 0.45, 0.28},
-        gold = {0.85, 0.72, 0.35},
-        shadow = {0.15, 0.12, 0.10},
-    },
-    -- Oasis - warm desert with water
-    oasis = {
-        sand_dark = {0.75, 0.60, 0.38},
-        sand_light = {0.92, 0.82, 0.58},
-        palm_trunk = {0.55, 0.38, 0.22},
-        palm_leaf = {0.25, 0.58, 0.32},
-        water = {0.25, 0.62, 0.72},
-    },
-    -- Path - dirt roads
-    path = {
-        dark = {0.42, 0.32, 0.22},
-        mid = {0.55, 0.45, 0.32},
-        light = {0.68, 0.58, 0.42},
-        pebble = {0.52, 0.50, 0.48},
-    },
-    -- Deep water - ocean depths
-    deep_water = {
-        abyss = {0.02, 0.06, 0.18},
-        deep = {0.05, 0.12, 0.28},
-        mid = {0.08, 0.18, 0.38},
-        caustic = {0.12, 0.25, 0.48},
-    },
-    -- Mountain - rocky peaks
-    mountain = {
-        snow = {0.92, 0.94, 0.98},
-        snow_shadow = {0.75, 0.80, 0.88},
-        rock_light = {0.58, 0.55, 0.52},
-        rock_mid = {0.42, 0.40, 0.38},
-        rock_dark = {0.28, 0.26, 0.25},
-        rock_shadow = {0.18, 0.16, 0.15},
-    },
-    -- Hills - elevated terrain
-    hills = {
-        grass_light = {0.35, 0.58, 0.32},
-        grass_mid = {0.25, 0.48, 0.25},
-        grass_dark = {0.18, 0.38, 0.18},
-        shadow = {0.12, 0.28, 0.12},
-    },
-    -- Highway - paved roads
-    highway = {
-        asphalt = {0.25, 0.25, 0.28},
-        asphalt_light = {0.32, 0.32, 0.35},
-        line_yellow = {0.90, 0.80, 0.25},
-        line_white = {0.92, 0.92, 0.95},
-        edge = {0.18, 0.18, 0.20},
-    },
-}
+-- Import terrain palettes from centralized location
+local palettes = Palettes.terrain
 
--- Helper functions
-local function setPixel(data, x, y, color, alpha)
-    if x >= 0 and x < data:getWidth() and y >= 0 and y < data:getHeight() then
-        data:setPixel(x, y, color[1], color[2], color[3], alpha or 1)
-    end
-end
-
-local function hash(x, y, seed)
-    local n = x + y * 57 + (seed or 0) * 131
-    n = bit.bxor(bit.lshift(n, 13), n)
-    return bit.band(n * (n * n * 15731 + 789221) + 1376312589, 0x7FFFFFFF) / 0x7FFFFFFF
-end
-
-local function lerp(a, b, t)
-    return {a[1] + (b[1]-a[1])*t, a[2] + (b[2]-a[2])*t, a[3] + (b[3]-a[3])*t}
-end
-
-local function dither(x, y, threshold)
-    local pattern = {
-        {0.0, 0.5, 0.125, 0.625},
-        {0.75, 0.25, 0.875, 0.375},
-        {0.1875, 0.6875, 0.0625, 0.5625},
-        {0.9375, 0.4375, 0.8125, 0.3125}
-    }
-    return pattern[(y % 4) + 1][(x % 4) + 1] < threshold
-end
+-- Helper function aliases from Utils module
+local setPixel = Utils.setPixel
+local hash = Utils.hash
+local lerp = Utils.lerpColor  -- sprites.lua lerp operates on colors
+local dither = Utils.shouldDither
 
 function Sprites:init()
     self.images = {}

@@ -1,83 +1,22 @@
 local Town = {}
 local Color = require("color")
 local GameClock = require("gameclock")
+local Utils = require("utils")
+local Palettes = require("data.palettes")
 
 -- Pre-rendered town background canvas (major performance optimization)
 local townBackgroundCanvas = nil
 
-local function lerp(a, b, t)
-    return a + (b - a) * t
-end
+-- Helper function aliases from Utils module
+local lerp = Utils.lerp
+local lerpColor = Utils.lerpColor
+local shouldDither = Utils.shouldDither
+local simpleNoise = Utils.simpleNoise
+local clamp = Utils.clamp
 
-local function lerpColor(c1, c2, t)
-    return {lerp(c1[1], c2[1], t), lerp(c1[2], c2[2], t), lerp(c1[3], c2[3], t)}
-end
-
--- Dithering pattern for retro-style shading
-local function shouldDither(x, y, threshold)
-    local pattern = {
-        {0.0, 0.5, 0.125, 0.625},
-        {0.75, 0.25, 0.875, 0.375},
-        {0.1875, 0.6875, 0.0625, 0.5625},
-        {0.9375, 0.4375, 0.8125, 0.3125}
-    }
-    return pattern[(y % 4) + 1][(x % 4) + 1] < threshold
-end
-
--- Simple noise for texture variation
-local function simpleNoise(x, y, seed)
-    local n = math.sin(x * 12.9898 + y * 78.233 + (seed or 0)) * 43758.5453
-    return n - math.floor(n)
-end
-
--- Tile color palettes for rich graphics
-local TILE_PALETTES = {
-    water = {
-        base = {{0.15, 0.35, 0.62}, {0.12, 0.30, 0.55}, {0.22, 0.42, 0.70}},
-        foam = {0.45, 0.62, 0.80}
-    },
-    grass = {
-        base = {{0.25, 0.52, 0.30}, {0.20, 0.45, 0.25}, {0.32, 0.60, 0.35}},
-        flower = {{0.92, 0.72, 0.35}, {0.85, 0.45, 0.55}, {0.75, 0.55, 0.85}}
-    },
-    path = {
-        base = {{0.62, 0.52, 0.42}, {0.55, 0.45, 0.35}, {0.72, 0.62, 0.50}},
-        stone = {{0.50, 0.48, 0.45}, {0.58, 0.55, 0.52}}
-    },
-    building = {
-        base = {{0.45, 0.35, 0.28}, {0.38, 0.28, 0.22}, {0.55, 0.45, 0.35}},
-        roof = {{0.65, 0.35, 0.30}, {0.55, 0.28, 0.25}}
-    },
-    market = {
-        base = {{0.82, 0.72, 0.52}, {0.75, 0.65, 0.45}, {0.90, 0.80, 0.60}},
-        stall = {{0.60, 0.40, 0.30}, {0.72, 0.28, 0.28}}
-    }
-}
-
--- NPC type palettes
-local NPC_PALETTES = {
-    elder = {
-        skin = {{0.78, 0.62, 0.48}, {0.65, 0.50, 0.38}},
-        robe = {{0.55, 0.38, 0.28}, {0.42, 0.28, 0.20}},
-        hair = {0.75, 0.75, 0.80}
-    },
-    merchant = {
-        skin = {{0.85, 0.70, 0.55}, {0.72, 0.58, 0.45}},
-        clothes = {{0.75, 0.55, 0.25}, {0.60, 0.42, 0.18}},
-        apron = {0.92, 0.90, 0.85},
-        hair = {{0.45, 0.32, 0.22}, {0.35, 0.25, 0.18}}
-    },
-    guard = {
-        skin = {{0.72, 0.58, 0.45}, {0.60, 0.48, 0.38}},
-        armor = {{0.52, 0.52, 0.58}, {0.42, 0.42, 0.48}},
-        helmet = {{0.45, 0.45, 0.52}, {0.55, 0.55, 0.62}}
-    },
-    villager = {
-        skin = {{0.85, 0.70, 0.55}, {0.72, 0.58, 0.45}},
-        clothes = {{0.45, 0.55, 0.42}, {0.35, 0.45, 0.32}},
-        hair = {{0.35, 0.25, 0.18}, {0.55, 0.42, 0.28}, {0.72, 0.62, 0.45}}
-    }
-}
+-- Import palettes from centralized location
+local TILE_PALETTES = Palettes.town
+local NPC_PALETTES = Palettes.npc
 
 -- Draw a detailed water tile with animated waves
 local function drawWaterTile(x, y, ts, time)
@@ -1372,12 +1311,6 @@ end
 function Town:loadTownEvents()
     -- Load cutscenes and town events
     self.townEvents = self.townData.events or {}
-end
-
-local function clamp(value, minValue, maxValue)
-    if value < minValue then return minValue end
-    if value > maxValue then return maxValue end
-    return value
 end
 
 function Town:update(dt)

@@ -4,50 +4,16 @@
 
 local Contra = {}
 local Color = require("color")
+local Utils = require("utils")
 
-local function clamp(value, minValue, maxValue)
-    if value < minValue then return minValue end
-    if value > maxValue then return maxValue end
-    return value
-end
+-- Helper function aliases from Utils module
+local clamp = Utils.clamp
+local lerp = Utils.lerp
+local lerpColor = Utils.lerpColor
+local Palettes = require("data.palettes")
 
-local function lerp(a, b, t)
-    return a + (b - a) * t
-end
-
-local function lerpColor(c1, c2, t)
-    return {lerp(c1[1], c2[1], t), lerp(c1[2], c2[2], t), lerp(c1[3], c2[3], t)}
-end
-
--- Color palettes for SNES-style graphics
-local PALETTES = {
-    player = {
-        body = {{0.22, 0.52, 0.85}, {0.15, 0.38, 0.68}, {0.32, 0.62, 0.95}},
-        skin = {{0.92, 0.78, 0.62}, {0.78, 0.62, 0.48}, {0.98, 0.88, 0.75}},
-        hair = {{0.35, 0.25, 0.18}, {0.25, 0.18, 0.12}}
-    },
-    soldier = {
-        body = {{0.75, 0.28, 0.28}, {0.55, 0.18, 0.18}, {0.88, 0.38, 0.38}},
-        skin = {{0.72, 0.58, 0.45}, {0.58, 0.45, 0.35}}
-    },
-    turret = {
-        metal = {{0.55, 0.55, 0.62}, {0.42, 0.42, 0.48}, {0.72, 0.72, 0.78}},
-        accent = {{0.85, 0.35, 0.25}, {0.65, 0.25, 0.18}}
-    },
-    flyer = {
-        body = {{0.92, 0.52, 0.22}, {0.72, 0.38, 0.15}, {0.98, 0.68, 0.35}},
-        wing = {{0.82, 0.42, 0.18}, {0.62, 0.32, 0.12}}
-    },
-    boss = {
-        body = {{0.72, 0.22, 0.52}, {0.52, 0.12, 0.38}, {0.85, 0.35, 0.65}},
-        armor = {{0.45, 0.15, 0.35}, {0.32, 0.08, 0.25}},
-        eye = {{0.95, 0.35, 0.45}, {0.78, 0.22, 0.32}}
-    },
-    ground = {
-        rock = {{0.35, 0.30, 0.40}, {0.28, 0.24, 0.32}, {0.45, 0.38, 0.52}},
-        metal = {{0.42, 0.38, 0.48}, {0.32, 0.28, 0.38}, {0.55, 0.50, 0.62}}
-    }
-}
+-- Import palettes from centralized location
+local PALETTES = Palettes.contra
 
 function Contra:load()
     -- Level dimensions

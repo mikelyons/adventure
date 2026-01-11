@@ -5,6 +5,7 @@ local Inventory = require("inventory")
 local Paperdoll = require("paperdoll")
 local WorldGen = require("worldgen")
 local GameClock = require("gameclock")
+local Utils = require("utils")
 
 function WorldMap:load()
     print("[WorldMap] Starting load()")
@@ -393,11 +394,8 @@ function WorldMap:placeVehicle(nearX, nearY)
     self.vehicle.direction = "right"
 end
 
-local function clamp(value, minValue, maxValue)
-    if value < minValue then return minValue end
-    if value > maxValue then return maxValue end
-    return value
-end
+-- Helper function alias from Utils module
+local clamp = Utils.clamp
 
 function WorldMap:update(dt)
     -- Update game clock

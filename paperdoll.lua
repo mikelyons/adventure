@@ -3,93 +3,24 @@
 -- High-fidelity retro style with detailed pixel art
 
 local Paperdoll = {}
+local Utils = require("utils")
+local Palettes = require("data.palettes")
 
 -- Character dimensions
 Paperdoll.width = 16
 Paperdoll.height = 24
 Paperdoll.scale = 2.5
 
--- Skin tone palettes (base, shadow, highlight, dark)
-Paperdoll.skinTones = {
-    light = {
-        {0.98, 0.90, 0.82}, {0.88, 0.76, 0.66}, {1.0, 0.95, 0.90}, {0.75, 0.60, 0.50}
-    },
-    medium = {
-        {0.88, 0.72, 0.58}, {0.75, 0.58, 0.45}, {0.95, 0.82, 0.70}, {0.60, 0.45, 0.35}
-    },
-    tan = {
-        {0.78, 0.60, 0.45}, {0.65, 0.48, 0.35}, {0.88, 0.72, 0.58}, {0.52, 0.38, 0.28}
-    },
-    dark = {
-        {0.55, 0.42, 0.32}, {0.42, 0.30, 0.22}, {0.65, 0.52, 0.42}, {0.32, 0.22, 0.15}
-    },
-    ebony = {
-        {0.38, 0.28, 0.22}, {0.28, 0.20, 0.15}, {0.48, 0.38, 0.30}, {0.20, 0.14, 0.10}
-    },
-}
+-- Import character palettes from centralized location
+Paperdoll.skinTones = Palettes.character.skinTones
+Paperdoll.hairColors = Palettes.character.hairColors
+Paperdoll.clothingColors = Palettes.character.clothingColors
 
--- Hair color palettes (base, shadow, highlight)
-Paperdoll.hairColors = {
-    black = {{0.12, 0.10, 0.08}, {0.08, 0.06, 0.05}, {0.25, 0.22, 0.20}},
-    brown = {{0.45, 0.32, 0.20}, {0.32, 0.22, 0.12}, {0.58, 0.42, 0.28}},
-    blonde = {{0.92, 0.82, 0.52}, {0.78, 0.68, 0.38}, {0.98, 0.92, 0.68}},
-    red = {{0.75, 0.28, 0.15}, {0.58, 0.20, 0.10}, {0.88, 0.38, 0.22}},
-    auburn = {{0.58, 0.25, 0.18}, {0.45, 0.18, 0.12}, {0.72, 0.35, 0.25}},
-    white = {{0.92, 0.92, 0.95}, {0.78, 0.78, 0.82}, {1.0, 1.0, 1.0}},
-    gray = {{0.55, 0.55, 0.58}, {0.42, 0.42, 0.45}, {0.72, 0.72, 0.75}},
-    blue = {{0.28, 0.48, 0.85}, {0.18, 0.35, 0.68}, {0.42, 0.62, 0.95}},
-    green = {{0.28, 0.68, 0.38}, {0.18, 0.52, 0.28}, {0.42, 0.82, 0.52}},
-    purple = {{0.62, 0.32, 0.75}, {0.48, 0.22, 0.58}, {0.78, 0.45, 0.88}},
-    pink = {{0.95, 0.55, 0.72}, {0.82, 0.42, 0.58}, {1.0, 0.72, 0.85}},
-}
-
--- Clothing color palettes (base, shadow, highlight, accent)
-Paperdoll.clothingColors = {
-    white = {{0.95, 0.95, 0.95}, {0.80, 0.80, 0.82}, {1.0, 1.0, 1.0}, {0.65, 0.65, 0.68}},
-    black = {{0.18, 0.18, 0.20}, {0.10, 0.10, 0.12}, {0.32, 0.32, 0.35}, {0.25, 0.25, 0.28}},
-    red = {{0.88, 0.22, 0.22}, {0.65, 0.12, 0.12}, {0.98, 0.35, 0.35}, {0.52, 0.08, 0.08}},
-    crimson = {{0.72, 0.15, 0.22}, {0.52, 0.08, 0.15}, {0.85, 0.28, 0.35}, {0.42, 0.05, 0.10}},
-    blue = {{0.25, 0.48, 0.88}, {0.15, 0.32, 0.68}, {0.38, 0.62, 0.98}, {0.12, 0.25, 0.52}},
-    navy = {{0.15, 0.22, 0.45}, {0.08, 0.12, 0.32}, {0.25, 0.35, 0.58}, {0.05, 0.08, 0.22}},
-    green = {{0.28, 0.72, 0.38}, {0.18, 0.52, 0.25}, {0.42, 0.85, 0.52}, {0.12, 0.42, 0.18}},
-    forest = {{0.18, 0.45, 0.22}, {0.10, 0.32, 0.15}, {0.28, 0.58, 0.32}, {0.08, 0.25, 0.10}},
-    yellow = {{0.98, 0.88, 0.32}, {0.82, 0.72, 0.22}, {1.0, 0.95, 0.52}, {0.68, 0.58, 0.15}},
-    gold = {{0.85, 0.72, 0.25}, {0.68, 0.55, 0.15}, {0.98, 0.88, 0.42}, {0.52, 0.42, 0.10}},
-    purple = {{0.62, 0.32, 0.78}, {0.45, 0.22, 0.58}, {0.78, 0.48, 0.92}, {0.35, 0.15, 0.45}},
-    brown = {{0.58, 0.40, 0.28}, {0.42, 0.28, 0.18}, {0.72, 0.55, 0.42}, {0.32, 0.22, 0.12}},
-    tan = {{0.78, 0.65, 0.48}, {0.62, 0.50, 0.35}, {0.92, 0.82, 0.65}, {0.52, 0.42, 0.28}},
-    orange = {{0.98, 0.58, 0.22}, {0.82, 0.42, 0.12}, {1.0, 0.72, 0.38}, {0.65, 0.32, 0.08}},
-    pink = {{0.98, 0.62, 0.72}, {0.85, 0.48, 0.58}, {1.0, 0.78, 0.85}, {0.72, 0.38, 0.48}},
-    teal = {{0.25, 0.78, 0.78}, {0.15, 0.58, 0.58}, {0.38, 0.92, 0.92}, {0.10, 0.45, 0.45}},
-    gray = {{0.52, 0.52, 0.55}, {0.38, 0.38, 0.42}, {0.68, 0.68, 0.72}, {0.28, 0.28, 0.32}},
-}
-
--- Helper functions
-local function setPixel(imageData, x, y, color, alpha)
-    alpha = alpha or 1
-    if x >= 0 and x < imageData:getWidth() and y >= 0 and y < imageData:getHeight() then
-        imageData:setPixel(x, y, color[1], color[2], color[3], alpha)
-    end
-end
-
-local function lerp(a, b, t)
-    return a + (b - a) * t
-end
-
-local function lerpColor(c1, c2, t)
-    return {lerp(c1[1], c2[1], t), lerp(c1[2], c2[2], t), lerp(c1[3], c2[3], t)}
-end
-
--- Dithering pattern for smooth gradients
-local function shouldDither(x, y, threshold)
-    local pattern = {
-        {0.0, 0.5, 0.125, 0.625},
-        {0.75, 0.25, 0.875, 0.375},
-        {0.1875, 0.6875, 0.0625, 0.5625},
-        {0.9375, 0.4375, 0.8125, 0.3125}
-    }
-    return pattern[(y % 4) + 1][(x % 4) + 1] < threshold
-end
+-- Helper function aliases from Utils module
+local setPixel = Utils.setPixel
+local lerp = Utils.lerp
+local lerpColor = Utils.lerpColor
+local shouldDither = Utils.shouldDither
 
 -- Create a blank transparent layer
 function Paperdoll:createBlankLayer()
