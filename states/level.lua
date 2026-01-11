@@ -59,6 +59,15 @@ function Level:load()
     self.showWelcome = false
     self.welcomeTimer = 0
     self.welcomeDuration = 3.0
+
+    -- Entrance zone (for exiting back to world map)
+    self.entrance = {
+        x = 0,
+        y = 0,
+        width = 0,
+        height = 0
+    }
+    self.nearEntrance = false
 end
 
 function Level:enter()
@@ -76,9 +85,19 @@ function Level:enter()
     love.math.setRandomSeed(self.levelSeed)
     self:generateLevel()
 
-    -- Position player at entrance
+    -- Set up entrance zone at bottom edge (2 tiles wide, 1 tile tall)
+    local midCol = math.floor(self.level.cols / 2)
+    local ts = self.level.tileSize
+    self.entrance = {
+        x = (midCol - 1) * ts,
+        y = (self.level.rows - 1) * ts,
+        width = ts * 2,
+        height = ts
+    }
+
+    -- Position player just above the entrance
     self.player.x = self.level.width / 2
-    self.player.y = self.level.height - 60
+    self.player.y = self.level.height - ts - 30
 end
 
 function Level:generateLevel()
@@ -444,13 +463,17 @@ function Level:update(dt)
         end
     end
 
-    -- Clamp to bounds
+    -- Clamp to bounds (allow reaching bottom entrance)
     local half = self.player.size / 2
-    self.player.x = clamp(self.player.x, half + 32, self.level.width - half - 32)
-    self.player.y = clamp(self.player.y, half + 32, self.level.height - half - 32)
+    local ts = self.level.tileSize
+    self.player.x = clamp(self.player.x, half + ts, self.level.width - half - ts)
+    self.player.y = clamp(self.player.y, half + ts, self.level.height - half)
 
     -- Check NPC interactions
     self:checkNPCInteractions()
+
+    -- Check if player is at entrance (to exit level)
+    self:checkEntranceExit()
 
     -- Camera
     local screenW, screenH = love.graphics.getDimensions()
@@ -488,6 +511,24 @@ function Level:checkNPCInteractions()
             self.interactionPrompt = "Press SPACE to talk to " .. npc.name
             return
         end
+    end
+end
+
+function Level:checkEntranceExit()
+    -- Check if player is within the entrance zone at the bottom edge
+    local px, py = self.player.x, self.player.y
+    local e = self.entrance
+
+    -- Check if near entrance (for prompt)
+    local nearEntrance = px >= e.x - 20 and px <= e.x + e.width + 20 and
+                         py >= e.y - 40 and py <= e.y + e.height
+    self.nearEntrance = nearEntrance
+
+    -- Player must be in the entrance zone to exit
+    if px >= e.x and px <= e.x + e.width and
+       py >= e.y and py <= e.y + e.height then
+        -- Exit to world map
+        Gamestate:pop()
     end
 end
 
@@ -548,6 +589,24 @@ function Level:draw()
         end
     end
 
+    -- Draw entrance indicator
+    local e = self.entrance
+    local pulse = math.sin(love.timer.getTime() * 3) * 0.3 + 0.5
+    Color.set(0.4, 1, 0.4, pulse * 0.4)
+    love.graphics.rectangle("fill", e.x, e.y, e.width, e.height)
+    Color.set(0.4, 1, 0.4, pulse)
+    love.graphics.setLineWidth(2)
+    love.graphics.rectangle("line", e.x, e.y, e.width, e.height)
+
+    -- Draw exit arrow
+    local arrowX = e.x + e.width / 2
+    local arrowY = e.y + e.height / 2
+    Color.set(1, 1, 1, pulse)
+    love.graphics.polygon("fill",
+        arrowX - 8, arrowY - 5,
+        arrowX + 8, arrowY - 5,
+        arrowX, arrowY + 8)
+
     -- Draw NPCs
     for _, npc in ipairs(self.npcs) do
         -- Glow effect for mystical NPCs
@@ -587,12 +646,15 @@ function Level:draw()
     -- HUD
     Color.set(1, 1, 1, 1)
     love.graphics.print(self.levelName, 10, 10)
-    love.graphics.print("WASD to move, SPACE to talk, ESC to exit", 10, 30)
+    love.graphics.print("WASD to move, SPACE to talk, ESC for menu", 10, 30)
 
     -- Interaction prompt
     if self.interactionPrompt and not self.dialogue.active then
         Color.set(1, 1, 0.8, 1)
         love.graphics.print(self.interactionPrompt, 10, 50)
+    elseif self.nearEntrance and not self.dialogue.active then
+        Color.set(0.8, 1, 0.8, 1)
+        love.graphics.print("Walk south to exit to World Map", 10, 50)
     end
 
     -- Welcome message
